@@ -25,40 +25,37 @@ export async function POST(req: NextRequest) {
     console.log('\n⚡ Running 3 agents in parallel...');
     const startTime = Date.now();
 
-    const [demographicsResult, lifestyleResult, industryResult] = await Promise.all([
-      runDemographicsAgent(location, census_data, detailed_data)
-        .then(result => {
-          console.log('✅ Demographics Agent completed');
-          return result;
-        })
-        .catch(error => {
-          console.error('❌ Demographics Agent failed:', error.message);
-          throw error;
-        }),
-      
-      runLifestyleAgent(location, census_data, detailed_data)
-        .then(result => {
-          console.log('✅ Lifestyle Agent completed');
-          return result;
-        })
-        .catch(error => {
-          console.error('❌ Lifestyle Agent failed:', error.message);
-          throw error;
-        }),
-      
-      runIndustryAgent(location, census_data, detailed_data)
-        .then(result => {
-          console.log('✅ Industry Agent completed');
-          return result;
-        })
-        .catch(error => {
-          console.error('❌ Industry Agent failed:', error.message);
-          throw error;
-        }),
+    const [demographicsResult, lifestyleResult, industryResult] = await Promise.allSettled([
+      runDemographicsAgent(location, census_data, detailed_data),
+      runLifestyleAgent(location, census_data, detailed_data),
+      runIndustryAgent(location, census_data, detailed_data),
     ]);
 
     const parallelTime = Date.now() - startTime;
     console.log(`\n⏱️  Parallel execution completed in ${parallelTime}ms`);
+
+    // Extract results and handle failures gracefully
+    const demographics = demographicsResult.status === 'fulfilled' 
+      ? demographicsResult.value 
+      : null;
+    const lifestyle = lifestyleResult.status === 'fulfilled' 
+      ? lifestyleResult.value 
+      : null;
+    const industry = industryResult.status === 'fulfilled' 
+      ? industryResult.value 
+      : null;
+
+    // Log agent statuses
+    console.log('✅ Demographics Agent:', demographicsResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
+    console.log('✅ Lifestyle Agent:', lifestyleResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
+    console.log('✅ Industry Agent:', industryResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
+
+    // Check if we have at least 2 successful agents
+    const successfulAgents = [demographics, lifestyle, industry].filter(r => r !== null).length;
+    if (successfulAgents < 2) {
+      console.error('❌ Too many agent failures. Need at least 2 successful agents.');
+      throw new Error('Insufficient agent data - only ' + successfulAgents + ' agents succeeded');
+    }
 
     // STEP 2: Run Aggregator with all results
     console.log('\n🧠 Running Aggregator (Strategic Advisor)...');
@@ -68,9 +65,9 @@ export async function POST(req: NextRequest) {
       location,
       census_data,
       detailed_data,
-      demographicsResult,
-      lifestyleResult,
-      industryResult
+      demographics!,
+      lifestyle!,
+      industry!
     );
 
     const aggregatorTime = Date.now() - aggregatorStart;
@@ -79,15 +76,14 @@ export async function POST(req: NextRequest) {
     const totalTime = Date.now() - startTime;
     console.log(`\n🎉 Total processing time: ${totalTime}ms`);
     console.log(`📊 Top 3 Recommendations generated:\n`);
-    finalRecommendations.top_recommendations.forEach((rec, idx) => {
-      // Log all agent outputs for debugging
+    
+    // Log all agent outputs for debugging
     console.log('\n=== AGENT OUTPUTS ===');
     finalRecommendations.top_recommendations.forEach((rec: any, idx: number) => {
       console.log(`\n${idx + 1}. ${rec.business_type} (${rec.confidence_score}% confidence)`);
       console.log(`   Target: ${rec.target_customer}`);
       console.log(`   Investment: ${rec.investment_range}`);
       console.log(`   Risk: ${rec.risk_level}`);
-    });
     });
 
     // Return structured response
@@ -100,9 +96,9 @@ export async function POST(req: NextRequest) {
         block: detailed_data.fips_codes.block,
       },
       agent_analyses: {
-        demographics: demographicsResult,
-        lifestyle: lifestyleResult,
-        industry: industryResult,
+        demographics: demographics || { error: 'Demographics agent failed', recommendations: [], key_insights: [] },
+        lifestyle: lifestyle || { error: 'Lifestyle agent failed', recommendations: [], foot_traffic_profile: '', lifestyle_insights: [] },
+        industry: industry || { error: 'Industry agent failed', recommendations: [], workforce_profile: '', market_gaps: [] },
       },
       final_recommendations: finalRecommendations,
       metadata: {
