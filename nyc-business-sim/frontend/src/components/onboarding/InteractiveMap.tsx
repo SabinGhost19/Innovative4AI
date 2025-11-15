@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { useState, useCallback, useEffect } from 'react';
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import { MapPin } from 'lucide-react';
 
 type LocationData = {
@@ -24,6 +24,32 @@ const NYC_BOUNDS = {
 };
 
 const NYC_CENTER = { lat: 40.7589, lng: -73.9851 }; // Times Square area
+
+// Circle component for area visualization
+const AreaCircle = ({ position, radius = 500 }: { position: { lat: number; lng: number }, radius?: number }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!map || !position) return;
+
+        const circle = new google.maps.Circle({
+            strokeColor: '#3b82f6',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#3b82f6',
+            fillOpacity: 0.15,
+            map,
+            center: position,
+            radius: radius, // radius in meters
+        });
+
+        return () => {
+            circle.setMap(null);
+        };
+    }, [map, position, radius]);
+
+    return null;
+};
 
 const InteractiveMap = ({ onLocationSelect, selectedLocation, apiKey }: Props) => {
     const [markerPosition, setMarkerPosition] = useState<{ lat: number; lng: number } | null>(
@@ -110,19 +136,22 @@ const InteractiveMap = ({ onLocationSelect, selectedLocation, apiKey }: Props) =
                     style={{ width: '100%', height: '100%' }}
                 >
                     {markerPosition && (
-                        <AdvancedMarker position={markerPosition}>
-                            <Pin
-                                background={'#3b82f6'}
-                                borderColor={'#1e40af'}
-                                glyphColor={'#ffffff'}
-                                scale={1.2}
-                            />
-                        </AdvancedMarker>
+                        <>
+                            <AreaCircle position={markerPosition} radius={500} />
+                            <AdvancedMarker position={markerPosition}>
+                                <Pin
+                                    background={'#3b82f6'}
+                                    borderColor={'#1e40af'}
+                                    glyphColor={'#ffffff'}
+                                    scale={1.2}
+                                />
+                            </AdvancedMarker>
+                        </>
                     )}
                 </Map>
             </div>
             <p className="text-sm text-muted-foreground mt-2 text-center">
-                Click anywhere on the map to select your business location in NYC
+                Click anywhere on the map to select your business location in NYC (500m radius area shown)
             </p>
         </APIProvider>
     );

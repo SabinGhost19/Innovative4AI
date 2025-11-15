@@ -19,7 +19,11 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      platforms:
+        - linux/amd64
+        - linux/arm64
     container_name: nyc_business_backend
     ports:
       - "8000:8000"
