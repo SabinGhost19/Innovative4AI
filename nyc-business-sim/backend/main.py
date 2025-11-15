@@ -4,9 +4,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
-from database import init_db, get_db, AreaOverview
+from database import init_db, get_db, AreaOverview, DetailedAreaAnalysis
 from census_service import analyze_area
+from detailed_analysis_service import analyze_area_detailed
 
 app = FastAPI(title="NYC Business Simulator Backend")
 
@@ -32,6 +35,7 @@ class LaunchBusinessResponse(BaseModel):
     message: str
     area_id: Optional[int] = None
     data: Optional[dict] = None
+    detailed_data: Optional[dict] = None
 
 @app.on_event("startup")
 def startup_event():
@@ -51,8 +55,8 @@ def health_check():
 @app.post("/api/launch-business", response_model=LaunchBusinessResponse)
 def launch_business(request: LaunchBusinessRequest, db: Session = Depends(get_db)):
     """
-    Endpoint principal: procesează coordonatele, rulează analiza Census,
-    și salvează rezultatele în baza de date.
+    Endpoint principal: procesează coordonatele, rulează analiza Census standard,
+    analiza detaliată (din app4.py) în paralel, și salvează rezultatele în baza de date.
     """
     
     try:
@@ -61,8 +65,15 @@ def launch_business(request: LaunchBusinessRequest, db: Session = Depends(get_db
         
         print(f"Procesare cerere pentru lat={lat_str}, lon={lon_str}")
         
-        # Rulează analiza Census (integrare app2.py)
-        census_data = analyze_area(lat_str, lon_str)
+        # Rulăm ambele analize în paralel folosind ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Lansăm ambele analize simultan
+            future_standard = executor.submit(analyze_area, lat_str, lon_str)
+            future_detailed = executor.submit(analyze_area_detailed, lat_str, lon_str)
+            
+            # Așteptăm rezultatele
+            census_data = future_standard.result()
+            detailed_data = future_detailed.result()
         
         if not census_data:
             raise HTTPException(
@@ -117,13 +128,110 @@ def launch_business(request: LaunchBusinessRequest, db: Session = Depends(get_db
         db.commit()
         db.refresh(area_record)
         
-        print(f"Date salvate cu succes în DB cu ID={area_record.id}")
+        print(f"Date standard salvate cu succes în DB cu ID={area_record.id}")
+        
+        # Salvăm datele detaliate dacă există
+        detailed_record_id = None
+        if detailed_data:
+            try:
+                detail_demo = detailed_data.get("demographics_detailed", {})
+                detail_fips = detailed_data.get("fips_codes", {})
+                detail_stats = detailed_data.get("derived_statistics", {})
+                
+                # Helper function pentru a extrage valoarea dintr-un dict cu structura {value, label}
+                def get_value(code):
+                    item = detail_demo.get(code, {})
+                    if isinstance(item, dict):
+                        val = item.get("value")
+                        if val and val != "N/A":
+                            try:
+                                return int(val)
+                            except (ValueError, TypeError):
+                                try:
+                                    return float(val)
+                                except (ValueError, TypeError):
+                                    return None
+                    return None
+                
+                detailed_record = DetailedAreaAnalysis(
+                    area_overview_id=area_record.id,
+                    latitude=detailed_data.get("latitude"),
+                    longitude=detailed_data.get("longitude"),
+                    state_fips=detail_fips.get("state"),
+                    county_fips=detail_fips.get("county"),
+                    tract_fips=detail_fips.get("tract"),
+                    block_fips=detail_fips.get("block"),
+                    full_tract_id=detail_fips.get("full_tract_id"),
+                    full_block_id=detail_fips.get("full_block_id"),
+                    area_name=detailed_data.get("area_name"),
+                    analysis_year=detailed_data.get("year", "2021"),
+                    
+                    # Demographics
+                    total_population=get_value("B01003_001E"),
+                    median_age=get_value("B01002_001E"),
+                    
+                    # Income
+                    median_household_income=get_value("B19013_001E"),
+                    per_capita_income=get_value("B19301_001E"),
+                    total_households=get_value("B19001_001E"),
+                    households_75k_99k=get_value("B19001_013E"),
+                    households_100k_124k=get_value("B19001_014E"),
+                    households_125k_149k=get_value("B19001_015E"),
+                    households_150k_199k=get_value("B19001_016E"),
+                    households_200k_plus=get_value("B19001_017E"),
+                    
+                    # Education
+                    total_population_25_plus=get_value("B15003_001E"),
+                    bachelors_degree=get_value("B15003_022E"),
+                    masters_degree=get_value("B15003_023E"),
+                    doctorate_degree=get_value("B15003_025E"),
+                    
+                    # Housing
+                    total_housing_units=get_value("B25003_001E"),
+                    renter_occupied=get_value("B25003_003E"),
+                    median_rent_as_percent_income=get_value("B25071_001E"),
+                    
+                    # Transportation
+                    total_workers_16_plus=get_value("B08301_001E"),
+                    public_transportation=get_value("B08301_010E"),
+                    work_from_home=get_value("B08301_021E"),
+                    
+                    # Poverty
+                    poverty_population=get_value("B17001_002E"),
+                    
+                    # Derived statistics
+                    poverty_rate=detail_stats.get("poverty_rate"),
+                    high_income_households_rate=detail_stats.get("high_income_households_rate"),
+                    high_income_count=detail_stats.get("high_income_count"),
+                    bachelor_plus_rate=detail_stats.get("bachelor_plus_rate"),
+                    bachelor_plus_count=detail_stats.get("bachelor_plus_count"),
+                    renter_rate=detail_stats.get("renter_rate"),
+                    work_from_home_rate=detail_stats.get("work_from_home_rate"),
+                    
+                    # Raw JSON pentru backup
+                    raw_demographics_json=detail_demo,
+                    raw_derived_stats_json=detail_stats
+                )
+                
+                db.add(detailed_record)
+                db.commit()
+                db.refresh(detailed_record)
+                detailed_record_id = detailed_record.id
+                
+                print(f"Date detaliate salvate cu succes în DB cu ID={detailed_record.id}")
+            except Exception as e:
+                print(f"Eroare la salvarea datelor detaliate: {e}")
+                # Nu oprim procesul dacă datele detaliate nu se salvează
+                db.rollback()
+        
+        print(f"Analiza detaliată completă: {detailed_data is not None}")
         
         return LaunchBusinessResponse(
             success=True,
             message="Analiza zonei a fost completată și salvată cu succes",
             area_id=area_record.id,
-            data=census_data
+            data=census_data,
+            detailed_data=detailed_data
         )
         
     except HTTPException:
@@ -149,6 +257,26 @@ def get_all_area_overviews(skip: int = 0, limit: int = 100, db: Session = Depend
     
     areas = db.query(AreaOverview).offset(skip).limit(limit).all()
     return areas
+
+@app.get("/api/detailed-analysis/{area_id}")
+def get_detailed_analysis(area_id: int, db: Session = Depends(get_db)):
+    """Returnează analiza detaliată pentru un area_id specific"""
+    
+    detailed = db.query(DetailedAreaAnalysis).filter(
+        DetailedAreaAnalysis.area_overview_id == area_id
+    ).first()
+    
+    if not detailed:
+        raise HTTPException(status_code=404, detail="Analiza detaliată nu a fost găsită")
+    
+    return detailed
+
+@app.get("/api/all-detailed-analyses")
+def get_all_detailed_analyses(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Returnează toate analizele detaliate salvate"""
+    
+    analyses = db.query(DetailedAreaAnalysis).offset(skip).limit(limit).all()
+    return analyses
 
 if __name__ == "__main__":
     import uvicorn

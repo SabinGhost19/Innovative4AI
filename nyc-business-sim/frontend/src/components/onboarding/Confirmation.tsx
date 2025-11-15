@@ -20,9 +20,17 @@ const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
     setError(null);
 
     try {
-      // Extract latitude and longitude from location
-      const latitude = businessData.location?.lat || 40.72218503159535;
-      const longitude = businessData.location?.lng || -74.05022260410692;
+      // Verifică dacă utilizatorul a selectat o locație
+      if (!businessData.location || !businessData.location.lat || !businessData.location.lng) {
+        throw new Error('Please select a location on the map before launching your business');
+      }
+
+      // Extract latitude and longitude from selected location
+      const latitude = businessData.location.lat;
+      const longitude = businessData.location.lng;
+
+      console.log('Launching business with coordinates:', { latitude, longitude });
+      console.log('Location details:', businessData.location);
 
       const response = await fetch('http://localhost:8000/api/launch-business', {
         method: 'POST',
@@ -101,16 +109,31 @@ const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
             </div>
 
             {/* Location */}
-            {businessData.location && (
+            {businessData.location ? (
               <div className="p-6 rounded-xl bg-background/50 border border-border md:col-span-2">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
                     <MapPin className="h-5 w-5 text-accent" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Location</p>
                     <p className="font-semibold">{businessData.location.neighborhood}</p>
                     <p className="text-sm text-muted-foreground">{businessData.location.address}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Coordinates: {businessData.location.lat.toFixed(6)}, {businessData.location.lng.toFixed(6)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 rounded-xl bg-destructive/10 border border-destructive/20 md:col-span-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-destructive/20 flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-destructive">No Location Selected</p>
+                    <p className="text-xs text-muted-foreground">Please go back and select a location on the map</p>
                   </div>
                 </div>
               </div>
@@ -178,11 +201,19 @@ const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
             onClick={handleLaunch}
             size="lg"
             className="flex-1 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success/80 glow-primary"
-            disabled={isLaunching}
+            disabled={isLaunching || !businessData.location}
+            title={!businessData.location ? 'Please select a location first' : ''}
           >
             {isLaunching ? 'Launching...' : 'Launch My Business'}
           </Button>
         </div>
+
+        {/* Warning if no location */}
+        {!businessData.location && (
+          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            ⚠️ Please go back and select a location on the map before launching your business.
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (

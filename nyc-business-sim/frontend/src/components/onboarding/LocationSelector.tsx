@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BusinessData } from "@/pages/Onboarding";
-import { MapPin } from "lucide-react";
+import { MapPin, Sparkles } from "lucide-react";
 import InteractiveMap from "./InteractiveMap";
+import RecommendationsDisplay from "./RecommendationsDisplay";
+import { useToast } from "@/hooks/use-toast";
 
 type Props = {
   businessData: BusinessData;
@@ -13,6 +15,15 @@ type Props = {
 
 const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: Props) => {
   const [selectedLocation, setSelectedLocation] = useState(businessData.location);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [agentStatus, setAgentStatus] = useState({
+    demographics: false,
+    lifestyle: false,
+    industry: false,
+    aggregator: false,
+  });
+  const { toast } = useToast();
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   const handleMapLocationSelect = (location: {
@@ -35,6 +46,104 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
       updateBusinessData({ location: selectedLocation });
     }
     onNext();
+  };
+
+  const handleGenerateRecommendations = async () => {
+    if (!selectedLocation) {
+      toast({
+        title: "No location selected",
+        description: "Please select a location on the map first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingAI(true);
+    setRecommendations([]);
+    setAgentStatus({
+      demographics: false,
+      lifestyle: false,
+      industry: false,
+      aggregator: false,
+    });
+
+    try {
+      // Step 1: Get Census data from FastAPI backend
+      console.log('📍 Calling Census API with coordinates:', selectedLocation);
+
+      const censusResponse = await fetch('http://localhost:8000/api/launch-business', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          latitude: selectedLocation.lat,
+          longitude: selectedLocation.lng,
+          business_name: businessData.name || 'Test Business',
+          industry: businessData.type || 'Retail',
+        }),
+      });
+
+      if (!censusResponse.ok) {
+        throw new Error(`Census API error: ${censusResponse.statusText}`);
+      }
+
+      const censusData = await censusResponse.json();
+      console.log('✅ Census data received:', censusData);
+
+      // Simulate agent progress (in reality, this would be from streaming)
+      setTimeout(() => setAgentStatus(prev => ({ ...prev, demographics: true })), 1000);
+      setTimeout(() => setAgentStatus(prev => ({ ...prev, lifestyle: true })), 2000);
+      setTimeout(() => setAgentStatus(prev => ({ ...prev, industry: true })), 3000);
+
+      // Step 2: Call AI Agents with Census data
+      console.log('🤖 Calling AI Agents with Census data...');
+
+      const aiResponse = await fetch('http://localhost:3000/api/recommend-business', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          location: selectedLocation,
+          census_data: censusData.data || {},
+          detailed_data: censusData.detailed_data || {},
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        throw new Error(`AI API error: ${aiResponse.statusText}`);
+      }
+
+      const aiData = await aiResponse.json();
+      console.log('✅ AI recommendations received:', aiData);
+
+      setAgentStatus({
+        demographics: true,
+        lifestyle: true,
+        industry: true,
+        aggregator: true,
+      });
+
+      // Extract recommendations
+      const recs = aiData.final_recommendations?.top_recommendations || [];
+      setRecommendations(recs);
+
+      toast({
+        title: "🎉 Recommendations Generated!",
+        description: `Found ${recs.length} AI-powered business recommendations for your location.`,
+      });
+
+    } catch (error) {
+      console.error('❌ Error generating recommendations:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate recommendations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   return (
@@ -68,7 +177,28 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
               </div>
             </div>
           )}
+
+          {/* Generate TOP 3 Button */}
+          {selectedLocation && !isLoadingAI && recommendations.length === 0 && (
+            <Button
+              onClick={handleGenerateRecommendations}
+              size="lg"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+            >
+              <Sparkles className="mr-2 h-5 w-5" />
+              Generate TOP 3 Businesses with AI
+            </Button>
+          )}
         </div>
+
+        {/* AI Recommendations Display */}
+        {(isLoadingAI || recommendations.length > 0) && (
+          <RecommendationsDisplay
+            recommendations={recommendations}
+            isLoading={isLoadingAI}
+            agentStatus={agentStatus}
+          />
+        )}
 
         {/* Navigation Buttons */}
         <div className="flex gap-4">
