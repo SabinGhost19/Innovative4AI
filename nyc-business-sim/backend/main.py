@@ -11,6 +11,7 @@ import httpx
 from database import init_db, get_db, AreaOverview, DetailedAreaAnalysis
 from census_service import analyze_area
 from detailed_analysis_service import analyze_area_detailed
+from trends_service import analyze_business_trends
 
 app = FastAPI(title="NYC Business Simulator Backend")
 
@@ -47,7 +48,12 @@ class SimulationNextMonthRequest(BaseModel):
 class SimulationNextMonthResponse(BaseModel):
     success: bool
     event: Optional[Dict[str, Any]] = None
+    trends: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+
+class GetTrendsRequest(BaseModel):
+    business_type: str
+    location: str = "US-NY"
 
 @app.on_event("startup")
 def startup_event():
@@ -290,6 +296,30 @@ def get_all_detailed_analyses(skip: int = 0, limit: int = 100, db: Session = Dep
     analyses = db.query(DetailedAreaAnalysis).offset(skip).limit(limit).all()
     return analyses
 
+@app.post("/api/get-trends")
+async def get_trends(request: GetTrendsRequest):
+    """
+    Endpoint pentru extragerea Google Trends.
+    Returneaz datele brute de la pytrends pentru a fi procesate de agentul de AI.
+    """
+    try:
+        print(f"🔍 Fetching Google Trends for: {request.business_type}")
+        
+        trends_data = analyze_business_trends(
+            business_type=request.business_type,
+            location=request.location
+        )
+        
+        return trends_data
+        
+    except Exception as e:
+        print(f"❌ Error fetching trends: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "business_type": request.business_type
+        }
+
 @app.post("/api/simulation/next-month", response_model=SimulationNextMonthResponse)
 async def simulation_next_month(request: SimulationNextMonthRequest, db: Session = Depends(get_db)):
     """
@@ -369,12 +399,10 @@ async def simulation_next_month(request: SimulationNextMonthRequest, db: Session
             "currentYear": request.current_year
         }
         
-        # Apelează API-ul agents-orchestrator
+        # Apelează API-ul agents-orchestrator PENTRU EVENIMENTE ȘI TRENDS ÎN PARALEL
         agents_orchestrator_url = os.getenv("AGENTS_ORCHESTRATOR_URL", "http://localhost:3000")
-        target_url = f"{agents_orchestrator_url}/api/simulation/next-month"
         
-        print(f"🔗 Attempting to connect to: {target_url}")
-        print(f"📦 Payload: {payload}")
+        print(f"🔗 Calling agents orchestrator at: {agents_orchestrator_url}")
         
         # Configurez timeout-uri generoase pentru AI processing
         timeout = httpx.Timeout(
@@ -385,24 +413,78 @@ async def simulation_next_month(request: SimulationNextMonthRequest, db: Session
         )
         
         async with httpx.AsyncClient(timeout=timeout) as client:
-            print(f"✅ HTTP Client created, sending POST request...")
-            response = await client.post(
-                target_url,
+            # Extrag Google Trends în paralel
+            print(f"📊 Step 1: Fetching Google Trends data...")
+            trends_data_response = await client.post(
+                "http://localhost:8000/api/get-trends",
+                json={
+                    "business_type": request.business_type,
+                    "location": "US-NY"
+                }
+            )
+            trends_raw_data = trends_data_response.json()
+            print(f"✅ Trends data fetched: {trends_raw_data.get('success', False)}")
+            
+            # Construiește payload-ul pentru agenți
+            payload = {
+                "businessType": request.business_type,
+                "location": {
+                    "address": area.area_name or "Unknown",
+                    "neighborhood": area.area_name or "Unknown",
+                    "lat": area.latitude,
+                    "lng": area.longitude
+                },
+                "censusData": census_data,
+                "currentMonth": request.current_month,
+                "currentYear": request.current_year
+            }
+            
+            # Apelează ambii agenți în paralel
+            print(f"🎲 Step 2: Calling both agents in parallel...")
+            
+            # Events agent
+            events_future = client.post(
+                f"{agents_orchestrator_url}/api/simulation/next-month",
                 json=payload
             )
-            print(f"📨 Response status: {response.status_code}")
             
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"Eroare la apelarea agents-orchestrator: {response.text}"
-                )
+            # Trends agent (cu trends data)
+            trends_payload = {
+                **payload,
+                "trendsData": trends_raw_data
+            }
+            trends_future = client.post(
+                f"{agents_orchestrator_url}/api/simulation/analyze-trends",
+                json=trends_payload
+            )
             
-            event_data = response.json()
+            # Așteaptă ambele răspunsuri
+            import asyncio
+            responses = await asyncio.gather(events_future, trends_future, return_exceptions=True)
+            
+            events_response = responses[0]
+            trends_response = responses[1]
+            
+            # Procesează răspunsurile
+            event_data = None
+            trends_analysis = None
+            
+            if isinstance(events_response, httpx.Response) and events_response.status_code == 200:
+                event_data = events_response.json()
+                print(f"✅ Events agent succeeded")
+            else:
+                print(f"❌ Events agent failed: {events_response}")
+            
+            if isinstance(trends_response, httpx.Response) and trends_response.status_code == 200:
+                trends_analysis = trends_response.json()
+                print(f"✅ Trends agent succeeded")
+            else:
+                print(f"❌ Trends agent failed: {trends_response}")
             
             return SimulationNextMonthResponse(
                 success=True,
-                event=event_data
+                event=event_data,
+                trends=trends_analysis
             )
             
     except HTTPException:
