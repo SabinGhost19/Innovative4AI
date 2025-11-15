@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nyc_business_db
+    environment:
+      POSTGRES_USER: businessuser
+      POSTGRES_PASSWORD: businesspass123
+      POSTGRES_DB: nyc_business_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U businessuser -d nyc_business_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: nyc_business_backend
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_USER: businessuser
+      POSTGRES_PASSWORD: businesspass123
+      POSTGRES_DB: nyc_business_db
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CENSUS_API_KEY: 1ed1e83e431ff7989d572d0c2c3e44d1bf444a64
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

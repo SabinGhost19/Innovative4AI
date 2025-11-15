@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { BusinessData } from "@/pages/Onboarding";
 import { Check, MapPin, DollarSign, Store, Package } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
   businessData: BusinessData;
@@ -9,6 +11,53 @@ type Props = {
 };
 
 const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
+  const navigate = useNavigate();
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLaunch = async () => {
+    setIsLaunching(true);
+    setError(null);
+
+    try {
+      // Extract latitude and longitude from location
+      const latitude = businessData.location?.lat || 40.72218503159535;
+      const longitude = businessData.location?.lng || -74.05022260410692;
+
+      const response = await fetch('http://localhost:8000/api/launch-business', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          business_name: businessData.name,
+          industry: businessData.industry,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to launch business');
+      }
+
+      const result = await response.json();
+      console.log('Backend response:', result);
+
+      // Save the analysis data to localStorage for the debug page
+      localStorage.setItem('areaAnalysisData', JSON.stringify(result));
+
+      // Navigate to the area analysis debug page
+      navigate('/area-analysis');
+    } catch (err) {
+      console.error('Error launching business:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while launching your business');
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
@@ -23,7 +72,7 @@ const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
         {/* Business Overview */}
         <div className="space-y-4">
           <h3 className="text-2xl font-bold gradient-text">{businessData.name}</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Industry */}
             <div className="p-6 rounded-xl bg-background/50 border border-border">
@@ -121,17 +170,26 @@ const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
             variant="outline"
             size="lg"
             className="flex-1 glass-button"
+            disabled={isLaunching}
           >
             Back
           </Button>
           <Button
-            onClick={onComplete}
+            onClick={handleLaunch}
             size="lg"
             className="flex-1 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success/80 glow-primary"
+            disabled={isLaunching}
           >
-            Launch My Business
+            {isLaunching ? 'Launching...' : 'Launch My Business'}
           </Button>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Competitors from "./pages/Competitors";
 import Reports from "./pages/Reports";
+import AreaAnalysisDebug from "./pages/AreaAnalysisDebug";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/area-analysis" element={<AreaAnalysisDebug />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/competitors" element={<Competitors />} />
           <Route path="/dashboard/reports" element={<Reports />} />
