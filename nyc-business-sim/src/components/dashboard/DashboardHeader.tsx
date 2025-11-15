@@ -1,4 +1,5 @@
-import { Bell, Calendar, DollarSign, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Bell, Calendar, DollarSign, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -9,41 +10,87 @@ type Props = {
 };
 
 const DashboardHeader = ({ businessName, currentMonth, cashBalance, notifications }: Props) => {
+  const [showBalance, setShowBalance] = useState(false);
+
   return (
-    <header className="h-20 border-b border-border/50 glass-card sticky top-0 z-30">
+    <header
+      className="h-20 border-b border-white/[0.06] sticky top-0 z-30 backdrop-blur-xl"
+      style={{
+        background: 'rgba(0, 0, 0, 0.4)',
+      }}
+    >
       <div className="h-full px-8 flex items-center justify-between">
-        {/* Business Info */}
-        <div>
-          <h1 className="text-2xl font-bold">{businessName}</h1>
-          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
-              <span>Month {currentMonth}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-success font-semibold">
-              <DollarSign className="h-4 w-4" />
-              <span>${cashBalance.toLocaleString()}</span>
-            </div>
+        {/* Minimalist Business Info */}
+        <div className="flex items-center gap-6">
+          <h1 className="text-xl font-light tracking-wide text-white/90">
+            {businessName}
+          </h1>
+          <div className="h-6 w-px bg-white/[0.08]" />
+          <div className="flex items-center gap-2 text-sm text-white/50">
+            <Calendar className="h-4 w-4" />
+            <span className="font-light">M{currentMonth}</span>
+          </div>
+
+          {/* Progressive Disclosure - Cash Balance */}
+          <div className="relative group">
+            <button
+              onClick={() => setShowBalance(!showBalance)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg glass-button hover:border-primary/30 transition-all duration-300"
+            >
+              {showBalance ? (
+                <EyeOff className="h-4 w-4 text-white/50" />
+              ) : (
+                <Eye className="h-4 w-4 text-white/50" />
+              )}
+              {showBalance ? (
+                <span className="text-accent font-light text-sm">
+                  ${cashBalance.toLocaleString()}
+                </span>
+              ) : (
+                <span className="text-white/40 text-sm font-light">••••••</span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <button className="relative p-3 rounded-xl glass-button hover:bg-primary/10 transition-colors">
-            <Bell className="h-5 w-5" />
+        {/* Minimalist Actions */}
+        <div className="flex items-center gap-3">
+          {/* Subtle Notifications */}
+          <button className="relative p-2.5 rounded-xl glass-button hover:border-primary/20 transition-all duration-300 group">
+            <Bell className="h-4 w-4 text-white/50 group-hover:text-white/70 transition-colors" />
             {notifications > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-destructive to-destructive/80 text-white text-xs flex items-center justify-center font-bold animate-pulse">
+              <span
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] flex items-center justify-center font-medium"
+                style={{
+                  background: 'rgba(13, 115, 119, 0.8)',
+                  boxShadow: '0 0 12px rgba(13, 115, 119, 0.4)',
+                }}
+              >
                 {notifications}
               </span>
             )}
           </button>
 
-          {/* Next Month Button */}
-          <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 glow-primary group">
-            <Calendar className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-            NEXT MONTH
-            <ChevronRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          {/* Glassy NEXT MONTH Button */}
+          <Button
+            className="px-6 py-2.5 rounded-xl font-light text-sm tracking-wide transition-all duration-300 group border-0"
+            style={{
+              background: 'linear-gradient(135deg, rgba(13, 115, 119, 0.3) 0%, rgba(20, 255, 236, 0.15) 100%)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 0 20px rgba(13, 115, 119, 0.2)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 30px rgba(13, 115, 119, 0.4)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(13, 115, 119, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <Calendar className="h-4 w-4 mr-2 text-accent group-hover:scale-110 transition-transform" />
+            <span className="text-white/90">NEXT MONTH</span>
+            <ChevronRight className="h-4 w-4 ml-2 text-accent group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
       </div>

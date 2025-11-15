@@ -141,215 +141,200 @@ const CompetitorsTab = () => {
 
     return (
         <div className="p-8 space-y-6">
-            <div className="space-y-2">
-                <h2 className="text-3xl font-bold">Market Competitors</h2>
-                <p className="text-muted-foreground">
-                    Track and analyze your competition to stay ahead in the market
-                </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
+            {/* Minimalist Competitor List */}
+            <div className="space-y-3">
                 {mockCompetitors.map((competitor) => {
                     const isExpanded = expandedId === competitor.id;
                     const trend = competitor.monthlyHistory[2].revenue > competitor.monthlyHistory[1].revenue;
 
                     return (
-                        <Card
+                        <div
                             key={competitor.id}
-                            className="overflow-hidden hover:shadow-xl transition-all duration-300"
+                            className="overflow-hidden transition-all duration-300"
+                            style={{
+                                background: isExpanded
+                                    ? 'rgba(13, 115, 119, 0.08)'
+                                    : 'rgba(13, 13, 13, 0.4)',
+                                backdropFilter: 'blur(20px) saturate(180%)',
+                                border: isExpanded
+                                    ? '1px solid rgba(13, 115, 119, 0.3)'
+                                    : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '16px',
+                            }}
                         >
-                            {/* Header - Always Visible */}
+                            {/* Compact Header - Only Name + Revenue */}
                             <div
-                                className="p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+                                className="p-5 cursor-pointer transition-all duration-300 flex items-center justify-between"
                                 onClick={() => toggleExpand(competitor.id)}
+                                onMouseEnter={(e) => {
+                                    if (!isExpanded) {
+                                        e.currentTarget.parentElement!.style.borderColor = 'rgba(13, 115, 119, 0.2)';
+                                        e.currentTarget.parentElement!.style.boxShadow = '0 0 20px rgba(13, 115, 119, 0.1)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!isExpanded) {
+                                        e.currentTarget.parentElement!.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                                        e.currentTarget.parentElement!.style.boxShadow = 'none';
+                                    }
+                                }}
                             >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1 space-y-3">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                                                <span className="text-2xl font-bold text-primary">
-                                                    {competitor.name.charAt(0)}
-                                                </span>
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="text-xl font-bold">{competitor.name}</h3>
-                                                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                                                        {competitor.type}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                                    <div className="flex items-center gap-1">
-                                                        <MapPin className="h-4 w-4" />
-                                                        {competitor.location}
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                                        {competitor.rating} / 5.0
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Users className="h-4 w-4" />
-                                                        {competitor.marketShare}% market share
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Key Metrics Grid */}
-                                        <div className="grid grid-cols-4 gap-4 pt-4">
-                                            <div className="space-y-1">
-                                                <p className="text-sm text-muted-foreground">Monthly Revenue</p>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-lg font-bold text-primary">
-                                                        ${(competitor.monthlyRevenue / 1000).toFixed(0)}K
-                                                    </p>
-                                                    {trend ? (
-                                                        <TrendingUp className="h-4 w-4 text-green-500" />
-                                                    ) : (
-                                                        <TrendingDown className="h-4 w-4 text-red-500" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="text-sm text-muted-foreground">Monthly Profit</p>
-                                                <p className="text-lg font-bold text-green-600">
-                                                    ${(competitor.monthlyProfit / 1000).toFixed(0)}K
-                                                </p>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="text-sm text-muted-foreground">Profit Margin</p>
-                                                <p className="text-lg font-bold">{competitor.profitMargin}%</p>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="text-sm text-muted-foreground">Monthly Customers</p>
-                                                <p className="text-lg font-bold">{competitor.monthlyCustomers.toLocaleString()}</p>
-                                            </div>
-                                        </div>
+                                <div className="flex items-center gap-4 flex-1">
+                                    {/* Initial Circle */}
+                                    <div
+                                        className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(13, 115, 119, 0.2) 0%, rgba(20, 255, 236, 0.1) 100%)',
+                                        }}
+                                    >
+                                        <span className="text-lg font-light text-primary">
+                                            {competitor.name.charAt(0)}
+                                        </span>
                                     </div>
 
-                                    <button className="ml-4 p-2 hover:bg-accent/10 rounded-lg transition-colors">
+                                    {/* Name & Location */}
+                                    <div className="flex-1">
+                                        <h3 className="text-base font-light text-white/90">{competitor.name}</h3>
+                                        <p className="text-xs text-white/40 font-light mt-0.5">{competitor.location}</p>
+                                    </div>
+
+                                    {/* Revenue (Primary Metric) */}
+                                    <div className="text-right mr-4">
+                                        <p className="text-lg font-light text-accent">${(competitor.monthlyRevenue / 1000).toFixed(0)}K</p>
+                                        <p className="text-xs text-white/30 font-light">revenue</p>
+                                    </div>
+
+                                    {/* Expand Icon */}
+                                    <button className="p-2 hover:bg-white/[0.05] rounded-lg transition-colors">
                                         {isExpanded ? (
-                                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                                            <ChevronUp className="h-4 w-4 text-white/40" />
                                         ) : (
-                                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                            <ChevronDown className="h-4 w-4 text-white/40" />
                                         )}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Expanded Details */}
+                            {/* Expanded Details - Progressive Disclosure */}
                             {isExpanded && (
-                                <div className="border-t border-border bg-accent/5">
-                                    <div className="p-6 space-y-6">
-                                        {/* Products Section */}
+                                <div
+                                    className="border-t p-6 space-y-6 animate-in fade-in duration-500"
+                                    style={{
+                                        borderColor: 'rgba(255, 255, 255, 0.06)',
+                                        background: 'rgba(0, 0, 0, 0.2)',
+                                    }}
+                                >
+                                    {/* Key Metrics Grid */}
+                                    <div className="grid grid-cols-3 gap-4">
                                         <div>
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <Package className="h-5 w-5 text-primary" />
-                                                <h4 className="text-lg font-semibold">Top Products</h4>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                {competitor.products.map((product, idx) => (
-                                                    <div
+                                            <p className="text-xs text-white/40 mb-1 font-light">Profit</p>
+                                            <p className="text-lg font-light text-accent">${(competitor.monthlyProfit / 1000).toFixed(0)}K</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-white/40 mb-1 font-light">Margin</p>
+                                            <p className="text-lg font-light text-white/80">{competitor.profitMargin}%</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-white/40 mb-1 font-light">Customers</p>
+                                            <p className="text-lg font-light text-white/80">{competitor.monthlyCustomers.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Products Section - Minimalist */}
+                                    <div>
+                                        <h4 className="text-xs font-light text-white/50 uppercase tracking-wider mb-3">Top Products</h4>
+                                        <div className="space-y-2">
+                                            {competitor.products.map((product, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="flex items-center justify-between p-3 rounded-lg transition-all duration-300"
+                                                    style={{
+                                                        background: 'rgba(255, 255, 255, 0.02)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                                                    }}
+                                                >
+                                                    <div>
+                                                        <p className="text-sm font-light text-white/80">{product.name}</p>
+                                                        <p className="text-xs text-white/40 font-light mt-0.5">{product.unitsSold} units</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-light text-accent">${product.price}</p>
+                                                        <p className="text-xs text-white/30 font-light">${(product.price * product.unitsSold).toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 3-Month History - Minimalist */}
+                                    <div>
+                                        <h4 className="text-xs font-light text-white/50 uppercase tracking-wider mb-3">Performance History</h4>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {competitor.monthlyHistory.map((data) => (
+                                                <div
+                                                    key={data.month}
+                                                    className="p-3 rounded-lg"
+                                                    style={{
+                                                        background: 'rgba(255, 255, 255, 0.02)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                                                    }}
+                                                >
+                                                    <p className="text-xs text-white/40 font-light mb-2">M{data.month}</p>
+                                                    <div className="space-y-1.5 text-xs">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-white/40 font-light">Revenue</span>
+                                                            <span className="font-light text-white/70">${(data.revenue / 1000).toFixed(0)}K</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-white/40 font-light">Profit</span>
+                                                            <span className="font-light text-accent">${(data.profit / 1000).toFixed(0)}K</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* SWOT - Minimalist */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <h4 className="text-xs font-light text-white/50 uppercase tracking-wider mb-2">Strengths</h4>
+                                            <ul className="space-y-1.5">
+                                                {competitor.strengths.map((strength, idx) => (
+                                                    <li
                                                         key={idx}
-                                                        className="p-4 rounded-xl bg-background border border-border hover:border-primary/50 transition-colors"
+                                                        className="text-xs p-2 rounded-lg font-light"
+                                                        style={{
+                                                            background: 'rgba(13, 115, 119, 0.1)',
+                                                            color: 'rgba(20, 255, 236, 0.8)',
+                                                        }}
                                                     >
-                                                        <p className="font-semibold mb-2">{product.name}</p>
-                                                        <div className="space-y-1 text-sm">
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Price:</span>
-                                                                <span className="font-medium">${product.price}</span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Units Sold:</span>
-                                                                <span className="font-medium">{product.unitsSold}</span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Revenue:</span>
-                                                                <span className="font-medium text-primary">
-                                                                    ${(product.price * product.unitsSold).toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                        • {strength}
+                                                    </li>
                                                 ))}
-                                            </div>
+                                            </ul>
                                         </div>
-
-                                        {/* Monthly Performance History */}
                                         <div>
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <TrendingUp className="h-5 w-5 text-primary" />
-                                                <h4 className="text-lg font-semibold">3-Month Performance</h4>
-                                            </div>
-                                            <div className="grid grid-cols-3 gap-4">
-                                                {competitor.monthlyHistory.map((data) => (
-                                                    <div
-                                                        key={data.month}
-                                                        className="p-4 rounded-xl bg-background border border-border"
+                                            <h4 className="text-xs font-light text-white/50 uppercase tracking-wider mb-2">Weaknesses</h4>
+                                            <ul className="space-y-1.5">
+                                                {competitor.weaknesses.map((weakness, idx) => (
+                                                    <li
+                                                        key={idx}
+                                                        className="text-xs p-2 rounded-lg font-light"
+                                                        style={{
+                                                            background: 'rgba(255, 255, 255, 0.05)',
+                                                            color: 'rgba(255, 255, 255, 0.5)',
+                                                        }}
                                                     >
-                                                        <p className="text-sm font-semibold text-muted-foreground mb-3">
-                                                            Month {data.month}
-                                                        </p>
-                                                        <div className="space-y-2 text-sm">
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Revenue:</span>
-                                                                <span className="font-medium">${(data.revenue / 1000).toFixed(0)}K</span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Profit:</span>
-                                                                <span className="font-medium text-green-600">
-                                                                    ${(data.profit / 1000).toFixed(0)}K
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Customers:</span>
-                                                                <span className="font-medium">{data.customers.toLocaleString()}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                        • {weakness}
+                                                    </li>
                                                 ))}
-                                            </div>
-                                        </div>
-
-                                        {/* SWOT Analysis */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <h4 className="text-sm font-semibold text-green-600 mb-3 flex items-center gap-2">
-                                                    <TrendingUp className="h-4 w-4" />
-                                                    Strengths
-                                                </h4>
-                                                <ul className="space-y-2">
-                                                    {competitor.strengths.map((strength, idx) => (
-                                                        <li
-                                                            key={idx}
-                                                            className="text-sm p-2 rounded-lg bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400"
-                                                        >
-                                                            • {strength}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-sm font-semibold text-red-600 mb-3 flex items-center gap-2">
-                                                    <TrendingDown className="h-4 w-4" />
-                                                    Weaknesses
-                                                </h4>
-                                                <ul className="space-y-2">
-                                                    {competitor.weaknesses.map((weakness, idx) => (
-                                                        <li
-                                                            key={idx}
-                                                            className="text-sm p-2 rounded-lg bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400"
-                                                        >
-                                                            • {weakness}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
+                                            </ul>
                                         </div>
                                     </div>
                                 </div>
                             )}
-                        </Card>
+                        </div>
                     );
                 })}
             </div>

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import {
     Select,
     SelectContent,
@@ -28,11 +27,10 @@ import {
     DollarSign,
     Users,
     ShoppingCart,
-    AlertCircle,
-    FileText,
-    Download,
+    ChevronDown,
+    ChevronUp,
+    BarChart3,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 type ReportType = "monthly" | "quarterly" | "yearly";
 type ChartType = "revenue" | "profit" | "customers" | "expenses";
@@ -63,9 +61,8 @@ const productPerformance = [
 ];
 
 const ReportsTab = () => {
-    const [reportPeriod, setReportPeriod] = useState<ReportType>("monthly");
+    const [showAnalytics, setShowAnalytics] = useState(false);
     const [selectedChart, setSelectedChart] = useState<ChartType>("revenue");
-    const [showCharts, setShowCharts] = useState(true);
 
     const currentMonth = monthlyData[monthlyData.length - 1];
     const previousMonth = monthlyData[monthlyData.length - 2];
@@ -91,307 +88,386 @@ const ReportsTab = () => {
 
     return (
         <div className="p-8 space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h2 className="text-3xl font-bold">Business Reports</h2>
-                    <p className="text-muted-foreground">
-                        Comprehensive financial analysis and performance metrics
+            {/* Minimalist Summary - Only 4 Numbers */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                {/* Revenue */}
+                <div
+                    className="group cursor-pointer transition-all duration-300"
+                    style={{
+                        background: 'rgba(13, 13, 13, 0.4)',
+                        backdropFilter: 'blur(20px) saturate(180%)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '16px',
+                        padding: '24px',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(13, 115, 119, 0.3)';
+                        e.currentTarget.style.boxShadow = '0 0 24px rgba(13, 115, 119, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.boxShadow = 'none';
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            style={{
+                                background: 'rgba(13, 115, 119, 0.15)',
+                            }}
+                        >
+                            <DollarSign className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Revenue</span>
+                    </div>
+                    <p className="text-3xl font-light text-white/90 mb-2">${currentMonth.revenue.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1.5 text-sm ${revenueChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
+                        {revenueChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                        <span className="font-light text-xs">{Math.abs(revenueChange).toFixed(1)}%</span>
+                    </div>
+                </div>
+
+                {/* Profit */}
+                <div
+                    className="group cursor-pointer transition-all duration-300"
+                    style={{
+                        background: 'rgba(13, 13, 13, 0.4)',
+                        backdropFilter: 'blur(20px) saturate(180%)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '16px',
+                        padding: '24px',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(13, 115, 119, 0.3)';
+                        e.currentTarget.style.boxShadow = '0 0 24px rgba(13, 115, 119, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.boxShadow = 'none';
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            style={{
+                                background: 'rgba(13, 115, 119, 0.15)',
+                            }}
+                        >
+                            <TrendingUp className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Profit</span>
+                    </div>
+                    <p className="text-3xl font-light text-accent mb-2">${currentMonth.profit.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1.5 text-sm ${profitChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
+                        {profitChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                        <span className="font-light text-xs">{Math.abs(profitChange).toFixed(1)}%</span>
+                    </div>
+                </div>
+
+                {/* Customers */}
+                <div
+                    className="group cursor-pointer transition-all duration-300"
+                    style={{
+                        background: 'rgba(13, 13, 13, 0.4)',
+                        backdropFilter: 'blur(20px) saturate(180%)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '16px',
+                        padding: '24px',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(13, 115, 119, 0.3)';
+                        e.currentTarget.style.boxShadow = '0 0 24px rgba(13, 115, 119, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.boxShadow = 'none';
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            style={{
+                                background: 'rgba(13, 115, 119, 0.15)',
+                            }}
+                        >
+                            <Users className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Customers</span>
+                    </div>
+                    <p className="text-3xl font-light text-white/90 mb-2">{currentMonth.customers.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1.5 text-sm ${customerChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
+                        {customerChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                        <span className="font-light text-xs">{Math.abs(customerChange).toFixed(1)}%</span>
+                    </div>
+                </div>
+
+                {/* Expenses */}
+                <div
+                    className="group cursor-pointer transition-all duration-300"
+                    style={{
+                        background: 'rgba(13, 13, 13, 0.4)',
+                        backdropFilter: 'blur(20px) saturate(180%)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '16px',
+                        padding: '24px',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(13, 115, 119, 0.3)';
+                        e.currentTarget.style.boxShadow = '0 0 24px rgba(13, 115, 119, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.boxShadow = 'none';
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            style={{
+                                background: 'rgba(13, 115, 119, 0.15)',
+                            }}
+                        >
+                            <ShoppingCart className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Expenses</span>
+                    </div>
+                    <p className="text-3xl font-light text-white/40 mb-2">${currentMonth.expenses.toLocaleString()}</p>
+                    <p className="text-xs text-white/30 font-light">
+                        {((currentMonth.expenses / currentMonth.revenue) * 100).toFixed(1)}% of revenue
                     </p>
                 </div>
-                <div className="flex items-center gap-4">
-                    <Select value={reportPeriod} onValueChange={(value) => setReportPeriod(value as ReportType)}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select period" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="monthly">Monthly Report</SelectItem>
-                            <SelectItem value="quarterly">Quarterly Report</SelectItem>
-                            <SelectItem value="yearly">Yearly Report</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button variant="outline" className="gap-2">
-                        <Download className="h-4 w-4" />
-                        Export PDF
-                    </Button>
-                </div>
             </div>
 
-            {/* Key Metrics Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="p-6">
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Total Revenue</p>
-                            <p className="text-2xl font-bold">${currentMonth.revenue.toLocaleString()}</p>
-                            <div className={`flex items-center gap-1 text-sm ${revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {revenueChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                                <span>{Math.abs(revenueChange).toFixed(1)}% vs last month</span>
-                            </div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-blue-500/10">
-                            <DollarSign className="h-6 w-6 text-blue-500" />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-6">
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Net Profit</p>
-                            <p className="text-2xl font-bold text-green-600">${currentMonth.profit.toLocaleString()}</p>
-                            <div className={`flex items-center gap-1 text-sm ${profitChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {profitChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                                <span>{Math.abs(profitChange).toFixed(1)}% vs last month</span>
-                            </div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-green-500/10">
-                            <TrendingUp className="h-6 w-6 text-green-500" />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-6">
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Total Customers</p>
-                            <p className="text-2xl font-bold">{currentMonth.customers.toLocaleString()}</p>
-                            <div className={`flex items-center gap-1 text-sm ${customerChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {customerChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                                <span>{Math.abs(customerChange).toFixed(1)}% vs last month</span>
-                            </div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-purple-500/10">
-                            <Users className="h-6 w-6 text-purple-500" />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-6">
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Total Expenses</p>
-                            <p className="text-2xl font-bold text-red-600">${currentMonth.expenses.toLocaleString()}</p>
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <AlertCircle className="h-4 w-4" />
-                                <span>{((currentMonth.expenses / currentMonth.revenue) * 100).toFixed(1)}% of revenue</span>
-                            </div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-red-500/10">
-                            <ShoppingCart className="h-6 w-6 text-red-500" />
-                        </div>
-                    </div>
-                </Card>
+            {/* Progressive Disclosure - Show Analytics Toggle */}
+            <div className="flex items-center justify-center">
+                <button
+                    onClick={() => setShowAnalytics(!showAnalytics)}
+                    className="flex items-center gap-3 px-6 py-3 rounded-xl transition-all duration-300"
+                    style={{
+                        background: showAnalytics
+                            ? 'rgba(13, 115, 119, 0.2)'
+                            : 'rgba(13, 13, 13, 0.4)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(13, 115, 119, 0.4)';
+                        e.currentTarget.style.boxShadow = '0 0 20px rgba(13, 115, 119, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.boxShadow = 'none';
+                    }}
+                >
+                    <BarChart3 className="h-4 w-4 text-white/50" />
+                    <span className="text-sm font-light text-white/70">
+                        {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+                    </span>
+                    {showAnalytics ? (
+                        <ChevronUp className="h-4 w-4 text-accent" />
+                    ) : (
+                        <ChevronDown className="h-4 w-4 text-accent" />
+                    )}
+                </button>
             </div>
 
-            {/* Chart Controls */}
-            <Card className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Performance Analytics</h3>
+            {/* Analytics - Hidden by Default */}
+            {showAnalytics && (
+                <div className="space-y-5 animate-in fade-in duration-500">
+                    {/* Chart Controls */}
+                    <div
+                        className="flex items-center justify-between p-5"
+                        style={{
+                            background: 'rgba(13, 13, 13, 0.4)',
+                            backdropFilter: 'blur(20px) saturate(180%)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '16px',
+                        }}
+                    >
+                        <h3 className="text-sm font-light text-white/70">Select Metric</h3>
+                        <Select value={selectedChart} onValueChange={(value) => setSelectedChart(value as ChartType)}>
+                            <SelectTrigger className="w-[180px] glass-button border-white/[0.08]">
+                                <SelectValue placeholder="Select metric" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="revenue">Revenue Trend</SelectItem>
+                                <SelectItem value="profit">Profit Trend</SelectItem>
+                                <SelectItem value="customers">Customer Growth</SelectItem>
+                                <SelectItem value="expenses">Expense Tracking</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <Button
-                            variant={showCharts ? "default" : "outline"}
-                            onClick={() => setShowCharts(!showCharts)}
-                            size="sm"
-                        >
-                            {showCharts ? "Hide Charts" : "Show Charts"}
-                        </Button>
-                        {showCharts && (
-                            <Select value={selectedChart} onValueChange={(value) => setSelectedChart(value as ChartType)}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Select metric" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="revenue">Revenue Trend</SelectItem>
-                                    <SelectItem value="profit">Profit Trend</SelectItem>
-                                    <SelectItem value="customers">Customer Growth</SelectItem>
-                                    <SelectItem value="expenses">Expense Tracking</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
-                    </div>
-                </div>
 
-                {showCharts && (
-                    <div className="space-y-8">
-                        {/* Main Chart */}
+                    {/* Main Chart */}
+                    <div
+                        className="p-6"
+                        style={{
+                            background: 'rgba(13, 13, 13, 0.4)',
+                            backdropFilter: 'blur(20px) saturate(180%)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '16px',
+                        }}
+                    >
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={getChartData()}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                                    <XAxis dataKey="month" stroke="#9ca3af" />
-                                    <YAxis stroke="#9ca3af" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" />
+                                    <XAxis
+                                        dataKey="month"
+                                        stroke="rgba(255, 255, 255, 0.3)"
+                                        style={{ fontSize: '12px', fontWeight: '300' }}
+                                    />
+                                    <YAxis
+                                        stroke="rgba(255, 255, 255, 0.3)"
+                                        style={{ fontSize: '12px', fontWeight: '300' }}
+                                    />
                                     <Tooltip
                                         contentStyle={{
-                                            backgroundColor: '#1f2937',
-                                            border: '1px solid #374151',
-                                            borderRadius: '8px',
+                                            background: 'rgba(13, 13, 13, 0.95)',
+                                            backdropFilter: 'blur(20px)',
+                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                            borderRadius: '12px',
+                                            padding: '12px',
+                                            fontSize: '13px',
+                                            fontWeight: '300',
                                         }}
                                     />
-                                    <Legend />
                                     <Line
                                         type="monotone"
                                         dataKey="value"
-                                        stroke="#3b82f6"
-                                        strokeWidth={3}
-                                        dot={{ fill: '#3b82f6', r: 5 }}
-                                        activeDot={{ r: 7 }}
+                                        stroke="hsl(182, 79%, 26%)"
+                                        strokeWidth={2}
+                                        dot={{ fill: 'hsl(178, 100%, 54%)', r: 4 }}
+                                        activeDot={{ r: 6, fill: 'hsl(178, 100%, 54%)' }}
                                     />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
+                    </div>
 
-                        {/* Secondary Charts Row */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Revenue vs Expenses Bar Chart */}
-                            <div>
-                                <h4 className="text-sm font-semibold mb-4">Revenue vs Expenses</h4>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <BarChart data={monthlyData.slice(-4)}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                                        <XAxis dataKey="month" stroke="#9ca3af" />
-                                        <YAxis stroke="#9ca3af" />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#1f2937',
-                                                border: '1px solid #374151',
-                                                borderRadius: '8px',
-                                            }}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" />
-                                        <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                    {/* Secondary Charts */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {/* Revenue vs Expenses */}
+                        <div
+                            className="p-6"
+                            style={{
+                                background: 'rgba(13, 13, 13, 0.4)',
+                                backdropFilter: 'blur(20px) saturate(180%)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '16px',
+                            }}
+                        >
+                            <h4 className="text-sm font-light text-white/70 mb-4">Revenue vs Expenses</h4>
+                            <ResponsiveContainer width="100%" height={250}>
+                                <BarChart data={monthlyData.slice(-4)}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" />
+                                    <XAxis
+                                        dataKey="month"
+                                        stroke="rgba(255, 255, 255, 0.3)"
+                                        style={{ fontSize: '12px', fontWeight: '300' }}
+                                    />
+                                    <YAxis
+                                        stroke="rgba(255, 255, 255, 0.3)"
+                                        style={{ fontSize: '12px', fontWeight: '300' }}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{
+                                            background: 'rgba(13, 13, 13, 0.95)',
+                                            backdropFilter: 'blur(20px)',
+                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                            borderRadius: '12px',
+                                            fontSize: '13px',
+                                            fontWeight: '300',
+                                        }}
+                                    />
+                                    <Bar dataKey="revenue" fill="hsl(182, 79%, 26%)" name="Revenue" />
+                                    <Bar dataKey="expenses" fill="rgba(255, 255, 255, 0.2)" name="Expenses" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
 
-                            {/* Expense Breakdown Pie Chart */}
-                            <div>
-                                <h4 className="text-sm font-semibold mb-4">Expense Breakdown</h4>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <PieChart>
-                                        <Pie
-                                            data={expenseBreakdown}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                        >
-                                            {expenseBreakdown.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#1f2937',
-                                                border: '1px solid #374151',
-                                                borderRadius: '8px',
-                                            }}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
+                        {/* Expense Breakdown */}
+                        <div
+                            className="p-6"
+                            style={{
+                                background: 'rgba(13, 13, 13, 0.4)',
+                                backdropFilter: 'blur(20px) saturate(180%)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '16px',
+                            }}
+                        >
+                            <h4 className="text-sm font-light text-white/70 mb-4">Expense Breakdown</h4>
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={expenseBreakdown}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                        outerRadius={80}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                        style={{ fontSize: '12px', fontWeight: '300' }}
+                                    >
+                                        {expenseBreakdown.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{
+                                            background: 'rgba(13, 13, 13, 0.95)',
+                                            backdropFilter: 'blur(20px)',
+                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                            borderRadius: '12px',
+                                            fontSize: '13px',
+                                            fontWeight: '300',
+                                        }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
-                )}
-            </Card>
 
-            {/* Product Performance Table */}
-            <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <ShoppingCart className="h-5 w-5 text-primary" />
-                    Product Performance
-                </h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b border-border">
-                                <th className="text-left py-3 px-4 font-semibold">Product</th>
-                                <th className="text-right py-3 px-4 font-semibold">Units Sold</th>
-                                <th className="text-right py-3 px-4 font-semibold">Revenue</th>
-                                <th className="text-right py-3 px-4 font-semibold">Margin</th>
-                                <th className="text-right py-3 px-4 font-semibold">Performance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {productPerformance.map((product, idx) => (
-                                <tr key={idx} className="border-b border-border/50 hover:bg-accent/5 transition-colors">
-                                    <td className="py-3 px-4 font-medium">{product.product}</td>
-                                    <td className="text-right py-3 px-4">{product.sales}</td>
-                                    <td className="text-right py-3 px-4">${product.revenue.toLocaleString()}</td>
-                                    <td className="text-right py-3 px-4">{product.margin}%</td>
-                                    <td className="text-right py-3 px-4">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-primary to-accent"
-                                                    style={{ width: `${product.margin}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-sm text-muted-foreground">{product.margin}%</span>
-                                        </div>
-                                    </td>
-                                </tr>
+                    {/* Product Performance - Top 3 Only */}
+                    <div
+                        className="p-6"
+                        style={{
+                            background: 'rgba(13, 13, 13, 0.4)',
+                            backdropFilter: 'blur(20px) saturate(180%)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '16px',
+                        }}
+                    >
+                        <h3 className="text-sm font-light text-white/70 mb-5">Top Products</h3>
+                        <div className="space-y-3">
+                            {productPerformance.slice(0, 3).map((product, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex items-center justify-between p-4 rounded-lg transition-all duration-300 hover:bg-white/[0.02]"
+                                    style={{
+                                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                                    }}
+                                >
+                                    <div className="flex-1">
+                                        <p className="text-sm font-light text-white/80">{product.product}</p>
+                                        <p className="text-xs text-white/40 mt-1">{product.sales} units</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-light text-accent">${product.revenue.toLocaleString()}</p>
+                                        <p className="text-xs text-white/40 mt-1">{product.margin}% margin</p>
+                                    </div>
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
-
-            {/* Financial Summary */}
-            <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Financial Summary
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-accent/5">
-                            <span className="text-sm font-medium">Total Revenue (6 months)</span>
-                            <span className="font-bold text-blue-600">
-                                ${monthlyData.reduce((sum, m) => sum + m.revenue, 0).toLocaleString()}
-                            </span>
                         </div>
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-accent/5">
-                            <span className="text-sm font-medium">Total Profit (6 months)</span>
-                            <span className="font-bold text-green-600">
-                                ${monthlyData.reduce((sum, m) => sum + m.profit, 0).toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-accent/5">
-                            <span className="text-sm font-medium">Average Profit Margin</span>
-                            <span className="font-bold">
-                                {((monthlyData.reduce((sum, m) => sum + m.profit, 0) /
-                                    monthlyData.reduce((sum, m) => sum + m.revenue, 0)) * 100).toFixed(1)}%
-                            </span>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-accent/5">
-                            <span className="text-sm font-medium">Total Expenses (6 months)</span>
-                            <span className="font-bold text-red-600">
-                                ${monthlyData.reduce((sum, m) => sum + m.expenses, 0).toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-accent/5">
-                            <span className="text-sm font-medium">Avg. Monthly Revenue</span>
-                            <span className="font-bold">
-                                ${(monthlyData.reduce((sum, m) => sum + m.revenue, 0) / monthlyData.length).toFixed(0)}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-accent/5">
-                            <span className="text-sm font-medium">Customer Growth Rate</span>
-                            <span className="font-bold text-green-600">+{customerChange.toFixed(1)}%</span>
-                        </div>
+                        <button
+                            className="w-full mt-4 py-2 text-xs font-light text-white/50 hover:text-accent transition-colors"
+                        >
+                            View All Products →
+                        </button>
                     </div>
                 </div>
-            </Card>
+            )}
         </div>
     );
 };
