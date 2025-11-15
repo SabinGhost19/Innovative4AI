@@ -2,10 +2,11 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, Any
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import httpx
 
 from database import init_db, get_db, AreaOverview, DetailedAreaAnalysis
 from census_service import analyze_area
@@ -36,6 +37,17 @@ class LaunchBusinessResponse(BaseModel):
     area_id: Optional[int] = None
     data: Optional[dict] = None
     detailed_data: Optional[dict] = None
+
+class SimulationNextMonthRequest(BaseModel):
+    area_id: int
+    business_type: str
+    current_month: int
+    current_year: int = 2024
+
+class SimulationNextMonthResponse(BaseModel):
+    success: bool
+    event: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 @app.on_event("startup")
 def startup_event():
@@ -277,6 +289,130 @@ def get_all_detailed_analyses(skip: int = 0, limit: int = 100, db: Session = Dep
     
     analyses = db.query(DetailedAreaAnalysis).offset(skip).limit(limit).all()
     return analyses
+
+@app.post("/api/simulation/next-month", response_model=SimulationNextMonthResponse)
+async def simulation_next_month(request: SimulationNextMonthRequest, db: Session = Depends(get_db)):
+    """
+    Endpoint pentru generarea evenimentelor la apăsarea butonului 'Next Month'.
+    Extrage datele Census din DB și apelează agentul de evenimente din agents-orchestrator.
+    """
+    try:
+        # Obține datele area_overview din DB
+        area = db.query(AreaOverview).filter(AreaOverview.id == request.area_id).first()
+        if not area:
+            raise HTTPException(status_code=404, detail=f"Area ID {request.area_id} nu a fost găsită")
+        
+        # Obține datele detaliate dacă există
+        detailed = db.query(DetailedAreaAnalysis).filter(
+            DetailedAreaAnalysis.area_overview_id == request.area_id
+        ).first()
+        
+        # Construiește datele Census în formatul așteptat de agent
+        census_data = {
+            "demographics_detailed": {},
+            "fips_codes": {
+                "state": area.state_fips,
+                "county": area.county_fips,
+                "tract": area.tract_fips,
+            },
+            "area_name": area.area_name or "Unknown Area",
+            "latitude": area.latitude,
+            "longitude": area.longitude,
+        }
+        
+        # Helper pentru a formata datele în structura așteptată de agent
+        def format_census_value(value, label):
+            return {
+                "value": value if value is not None else "N/A",
+                "label": label
+            }
+        
+        # Adaugă date din AreaOverview
+        demo = census_data["demographics_detailed"]
+        demo["B01001_001E"] = format_census_value(area.total_population, "Total Population")
+        demo["B01002_001E"] = format_census_value(area.median_age, "Median Age")
+        demo["B19013_001E"] = format_census_value(area.median_household_income, "Median Household Income")
+        demo["B19301_001E"] = format_census_value(area.per_capita_income, "Per Capita Income")
+        demo["B15003_001E"] = format_census_value(area.total_population_25_plus, "Total Population 25+")
+        demo["B15003_022E"] = format_census_value(area.bachelors_degree, "Bachelor's Degree")
+        demo["B15003_023E"] = format_census_value(area.masters_degree, "Master's Degree")
+        demo["B15003_025E"] = format_census_value(area.doctorate_degree, "Doctorate Degree")
+        demo["C24050_001E"] = format_census_value(area.total_workforce, "Total Workforce")
+        demo["C24050_007E"] = format_census_value(area.finance_insurance_real_estate, "Finance/Insurance/Real Estate")
+        demo["C24050_018E"] = format_census_value(area.arts_entertainment_hospitality, "Arts/Entertainment/Hospitality")
+        demo["C24050_029E"] = format_census_value(area.professional_services, "Professional Services")
+        demo["B17001_002E"] = format_census_value(area.poverty_population, "Poverty Population")
+        demo["B25003_001E"] = format_census_value(area.total_housing_units, "Total Housing Units")
+        demo["B25003_003E"] = format_census_value(area.renter_occupied, "Renter Occupied")
+        demo["B25031_001E"] = format_census_value(area.median_gross_rent, "Median Gross Rent")
+        demo["B25077_001E"] = format_census_value(area.median_home_value, "Median Home Value")
+        
+        # Adaugă date suplimentare din DetailedAreaAnalysis dacă există
+        if detailed:
+            demo["B19001_013E"] = format_census_value(detailed.households_75k_99k, "Households $75k-$99k")
+            demo["B19001_014E"] = format_census_value(detailed.households_100k_124k, "Households $100k-$124k")
+            demo["B19001_015E"] = format_census_value(detailed.households_125k_149k, "Households $125k-$149k")
+            demo["B19001_016E"] = format_census_value(detailed.households_150k_199k, "Households $150k-$199k")
+            demo["B19001_017E"] = format_census_value(detailed.households_200k_plus, "Households $200k+")
+        
+        # Construiește payload pentru agents-orchestrator
+        payload = {
+            "businessType": request.business_type,
+            "location": {
+                "address": area.area_name or "Unknown",
+                "neighborhood": area.area_name or "Unknown",
+                "lat": area.latitude,
+                "lng": area.longitude
+            },
+            "censusData": census_data,
+            "currentMonth": request.current_month,
+            "currentYear": request.current_year
+        }
+        
+        # Apelează API-ul agents-orchestrator
+        agents_orchestrator_url = os.getenv("AGENTS_ORCHESTRATOR_URL", "http://localhost:3000")
+        target_url = f"{agents_orchestrator_url}/api/simulation/next-month"
+        
+        print(f"🔗 Attempting to connect to: {target_url}")
+        print(f"📦 Payload: {payload}")
+        
+        # Configurez timeout-uri generoase pentru AI processing
+        timeout = httpx.Timeout(
+            connect=10.0,  # 10s pentru conectare
+            read=60.0,     # 60s pentru citire (AI processing)
+            write=10.0,    # 10s pentru scriere
+            pool=10.0      # 10s pentru pool
+        )
+        
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            print(f"✅ HTTP Client created, sending POST request...")
+            response = await client.post(
+                target_url,
+                json=payload
+            )
+            print(f"📨 Response status: {response.status_code}")
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Eroare la apelarea agents-orchestrator: {response.text}"
+                )
+            
+            event_data = response.json()
+            
+            return SimulationNextMonthResponse(
+                success=True,
+                event=event_data
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Eroare la generarea evenimentului: {e}")
+        return SimulationNextMonthResponse(
+            success=False,
+            error=str(e)
+        )
 
 if __name__ == "__main__":
     import uvicorn

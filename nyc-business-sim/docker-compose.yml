@@ -30,6 +30,7 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       CENSUS_API_KEY: 1ed1e83e431ff7989d572d0c2c3e44d1bf444a64
+      AGENTS_ORCHESTRATOR_URL: http://172.17.0.1:3000
     depends_on:
       db:
         condition: service_healthy
