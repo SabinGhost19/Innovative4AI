@@ -49,6 +49,7 @@ class SimulationNextMonthResponse(BaseModel):
     success: bool
     event: Optional[Dict[str, Any]] = None
     trends: Optional[Dict[str, Any]] = None
+    supplier: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 class GetTrendsRequest(BaseModel):
@@ -439,8 +440,8 @@ async def simulation_next_month(request: SimulationNextMonthRequest, db: Session
                 "currentYear": request.current_year
             }
             
-            # Apelează ambii agenți în paralel
-            print(f"🎲 Step 2: Calling both agents in parallel...")
+            # Apelează toți agenții în paralel (events, trends, supplier)
+            print(f"🎲 Step 2: Calling all 3 agents in parallel...")
             
             # Events agent
             events_future = client.post(
@@ -458,16 +459,29 @@ async def simulation_next_month(request: SimulationNextMonthRequest, db: Session
                 json=trends_payload
             )
             
-            # Așteaptă ambele răspunsuri
+            # Supplier agent (NEW)
+            supplier_future = client.post(
+                f"{agents_orchestrator_url}/api/simulation/analyze-suppliers",
+                json=payload
+            )
+            
+            # Așteaptă toate cele 3 răspunsuri
             import asyncio
-            responses = await asyncio.gather(events_future, trends_future, return_exceptions=True)
+            responses = await asyncio.gather(
+                events_future, 
+                trends_future, 
+                supplier_future,
+                return_exceptions=True
+            )
             
             events_response = responses[0]
             trends_response = responses[1]
+            supplier_response = responses[2]
             
             # Procesează răspunsurile
             event_data = None
             trends_analysis = None
+            supplier_analysis = None
             
             if isinstance(events_response, httpx.Response) and events_response.status_code == 200:
                 event_data = events_response.json()
@@ -481,10 +495,18 @@ async def simulation_next_month(request: SimulationNextMonthRequest, db: Session
             else:
                 print(f"❌ Trends agent failed: {trends_response}")
             
+            if isinstance(supplier_response, httpx.Response) and supplier_response.status_code == 200:
+                supplier_analysis = supplier_response.json()
+                print(f"✅ Supplier agent succeeded")
+                print(f"   Recommended Tier: {supplier_analysis.get('supplier_analysis', {}).get('recommended_tier', 'N/A')}")
+            else:
+                print(f"❌ Supplier agent failed: {supplier_response}")
+            
             return SimulationNextMonthResponse(
                 success=True,
                 event=event_data,
-                trends=trends_analysis
+                trends=trends_analysis,
+                supplier=supplier_analysis
             )
             
     except HTTPException:

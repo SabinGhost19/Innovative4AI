@@ -27,6 +27,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
     demographics: false,
     lifestyle: false,
     industry: false,
+    supplier: false,
     aggregator: false,
   });
   const { toast } = useToast();
@@ -54,6 +55,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
       demographics: false,
       lifestyle: false,
       industry: false,
+      supplier: false,
       aggregator: false,
     });
 
@@ -119,6 +121,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
       demographics: false,
       lifestyle: false,
       industry: false,
+      supplier: false,
       aggregator: false,
     });
 
@@ -150,6 +153,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
       setTimeout(() => setAgentStatus(prev => ({ ...prev, demographics: true })), 1000);
       setTimeout(() => setAgentStatus(prev => ({ ...prev, lifestyle: true })), 2000);
       setTimeout(() => setAgentStatus(prev => ({ ...prev, industry: true })), 3000);
+      setTimeout(() => setAgentStatus(prev => ({ ...prev, supplier: true })), 3500);
 
       // Step 2: Call AI Agents with Census data
       console.log('🤖 Calling AI Agents with Census data...');
@@ -177,6 +181,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
         demographics: true,
         lifestyle: true,
         industry: true,
+        supplier: true,
         aggregator: true,
       });
 

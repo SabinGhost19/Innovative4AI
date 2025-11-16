@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runDemographicsAgent } from '@/lib/agents/demographics-agent';
 import { runLifestyleAgent } from '@/lib/agents/lifestyle-agent';
 import { runIndustryAgent } from '@/lib/agents/industry-agent';
+import { runSupplierAgent } from '@/lib/agents/supplier-agent';
 import { runAggregatorAgent } from '@/lib/agents/aggregator';
 import { RecommendBusinessRequestSchema } from '@/lib/schemas';
 
@@ -21,14 +22,15 @@ export async function POST(req: NextRequest) {
     console.log('📊 Census Data Available:', !!census_data);
     console.log('🔍 Detailed Data Available:', !!detailed_data);
 
-    // STEP 1: Run 3 specialized agents IN PARALLEL
-    console.log('\n⚡ Running 3 agents in parallel...');
+    // STEP 1: Run 4 specialized agents IN PARALLEL
+    console.log('\n⚡ Running 4 agents in parallel...');
     const startTime = Date.now();
 
-    const [demographicsResult, lifestyleResult, industryResult] = await Promise.allSettled([
+    const [demographicsResult, lifestyleResult, industryResult, supplierResult] = await Promise.allSettled([
       runDemographicsAgent(location, census_data, detailed_data),
       runLifestyleAgent(location, census_data, detailed_data),
       runIndustryAgent(location, census_data, detailed_data),
+      runSupplierAgent(location, census_data, detailed_data),
     ]);
 
     const parallelTime = Date.now() - startTime;
@@ -44,14 +46,18 @@ export async function POST(req: NextRequest) {
     const industry = industryResult.status === 'fulfilled' 
       ? industryResult.value 
       : null;
+    const supplier = supplierResult.status === 'fulfilled'
+      ? supplierResult.value
+      : null;
 
     // Log agent statuses
     console.log('✅ Demographics Agent:', demographicsResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
     console.log('✅ Lifestyle Agent:', lifestyleResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
     console.log('✅ Industry Agent:', industryResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
+    console.log('✅ Supplier Agent:', supplierResult.status === 'fulfilled' ? 'SUCCESS' : '❌ FAILED');
 
     // Check if we have at least 2 successful agents
-    const successfulAgents = [demographics, lifestyle, industry].filter(r => r !== null).length;
+    const successfulAgents = [demographics, lifestyle, industry, supplier].filter(r => r !== null).length;
     if (successfulAgents < 2) {
       console.error('❌ Too many agent failures. Need at least 2 successful agents.');
       throw new Error('Insufficient agent data - only ' + successfulAgents + ' agents succeeded');
@@ -99,6 +105,7 @@ export async function POST(req: NextRequest) {
         demographics: demographics || { error: 'Demographics agent failed', recommendations: [], key_insights: [] },
         lifestyle: lifestyle || { error: 'Lifestyle agent failed', recommendations: [], foot_traffic_profile: '', lifestyle_insights: [] },
         industry: industry || { error: 'Industry agent failed', recommendations: [], workforce_profile: '', market_gaps: [] },
+        supplier: supplier || { error: 'Supplier agent failed', recommended_tier: 'mid-range', tier_confidence_score: 0, supplier_recommendations: [], key_insights: [] },
       },
       final_recommendations: finalRecommendations,
       metadata: {

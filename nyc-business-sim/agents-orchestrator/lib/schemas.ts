@@ -111,6 +111,37 @@ export const IndustryAnalysisSchema = z.object({
   market_gaps: z.array(z.string()).describe('Underserved services'),
 });
 
+// Agent 4: Supplier Analyst (Hybrid: 70% Deterministic + 30% AI)
+export const SupplierRecommendationSchema = z.object({
+  supplier_name: z.string().describe('Specific supplier or type (e.g., "Restaurant Depot NYC")'),
+  category: z.enum(['food_beverage', 'retail_goods', 'services', 'general']),
+  reliability_score: z.number().min(0).max(100).describe('Delivery reliability in NYC'),
+  price_competitiveness: z.enum(['low', 'medium', 'high']).describe('Relative to market'),
+  why_recommended: z.string().describe('Why this supplier for this location/tier'),
+});
+
+export const CostEstimateSchema = z.object({
+  budget: z.number().describe('Budget tier cost per unit ($)'),
+  'mid-range': z.number().describe('Mid-range tier cost per unit ($)'),
+  premium: z.number().describe('Premium tier cost per unit ($)'),
+});
+
+export const SupplierAnalysisSchema = z.object({
+  recommended_tier: z.enum(['budget', 'mid-range', 'premium']).describe('Based on income/demographics'),
+  tier_confidence_score: z.number().min(0).max(100).describe('How confident (deterministic calc)'),
+  base_quality_score: z.number().min(50).max(100).describe('Expected quality for this tier'),
+  seasonal_cost_modifier: z.number().min(0.8).max(1.3).describe('Current seasonal impact (1.0 = normal)'),
+  cost_estimates: z.object({
+    food_and_beverage: CostEstimateSchema,
+    retail_goods: CostEstimateSchema,
+    services: CostEstimateSchema,
+  }).describe('Cost per unit across categories'),
+  supplier_recommendations: z.array(SupplierRecommendationSchema).min(2).max(4),
+  reliability_concerns: z.array(z.string()).min(1).max(3).describe('Delivery/quality issues in NYC'),
+  competitive_advantages: z.array(z.string()).min(1).max(3).describe('Why suppliers work well here'),
+  key_insights: z.array(z.string()).min(2).max(3).describe('Critical supplier considerations'),
+});
+
 // Aggregator: Final Recommendations
 export const FinalRecommendationSchema = z.object({
   rank: z.number().describe('1, 2, or 3'),
@@ -145,6 +176,7 @@ export type RecommendBusinessRequest = z.infer<typeof RecommendBusinessRequestSc
 export type DemographicsAnalysis = z.infer<typeof DemographicsAnalysisSchema>;
 export type LifestyleAnalysis = z.infer<typeof LifestyleAnalysisSchema>;
 export type IndustryAnalysis = z.infer<typeof IndustryAnalysisSchema>;
+export type SupplierAnalysis = z.infer<typeof SupplierAnalysisSchema>;
 export type FinalRecommendations = z.infer<typeof FinalRecommendationsSchema>;
 export type CensusData = z.infer<typeof CensusDataSchema>;
 export type DetailedCensusData = z.infer<typeof DetailedCensusDataSchema>;

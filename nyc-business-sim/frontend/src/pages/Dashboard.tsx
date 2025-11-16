@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const [lastEvent, setLastEvent] = useState<any>(null);
   const [lastTrends, setLastTrends] = useState<any>(null);
+  const [lastSupplier, setLastSupplier] = useState<any>(null);
 
   useEffect(() => {
     const data = localStorage.getItem("businessData");
@@ -60,11 +61,16 @@ const Dashboard = () => {
 
       const data = await response.json();
 
-      if (data.success && data.event) {
-        const event = data.event.event; // nested structure from agents-orchestrator
+      console.log("Simulation response:", data); // Debug log
+
+      if (data.success) {
+        const event = data.event?.event; // nested structure from agents-orchestrator
         const trends = data.trends?.analysis; // trends data
-        setLastEvent(event);
-        setLastTrends(trends);
+        const supplier = data.supplier?.supplier_analysis; // supplier data
+        
+        if (event) setLastEvent(event);
+        if (trends) setLastTrends(trends);
+        if (supplier) setLastSupplier(supplier);
 
         // Update month
         if (currentMonth === 12) {
@@ -74,16 +80,29 @@ const Dashboard = () => {
           setCurrentMonth(currentMonth + 1);
         }
 
+        // Build notification message
+        let notificationParts: string[] = [];
+        if (event) {
+          notificationParts.push(`Event: ${event.nume_eveniment} (${event.impact_clienti_lunar > 0 ? '+' : ''}${event.impact_clienti_lunar}%)`);
+        }
+        if (trends) {
+          notificationParts.push(`Trend: ${trends.main_trend.trend_name}`);
+        }
+        if (supplier) {
+          notificationParts.push(`Supplier: ${supplier.recommended_tier} tier`);
+        }
+
         // Show combined notification
         toast({
           title: `🎲 Month ${currentMonth} Complete!`,
-          description: `Event: ${event.nume_eveniment} (${event.impact_clienti_lunar > 0 ? '+' : ''}${event.impact_clienti_lunar}%)\n${trends ? `Trend: ${trends.main_trend.trend_name}` : ''}`,
+          description: notificationParts.length > 0 ? notificationParts.join('\n') : 'Simulation completed',
           duration: 5000,
         });
 
         // Log detailed data
         console.log("Event generated:", event);
         console.log("Trends analysis:", trends);
+        console.log("Supplier analysis:", supplier);
       } else {
         throw new Error(data.error || "Unknown error");
       }
@@ -117,7 +136,7 @@ const Dashboard = () => {
 
       {/* Simulation Insights Section */}
       <div className="px-8 py-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Events Card */}
           {lastEvent && (
             <div className="glass-card p-6 rounded-2xl border border-white/10">
@@ -203,6 +222,96 @@ const Dashboard = () => {
                       <span className="text-accent font-medium">{lastTrends.market_momentum}</span>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Supplier Analysis Card */}
+          {lastSupplier && (
+            <div className="glass-card p-6 rounded-2xl border border-white/10">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">📦</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white mb-2">Supplier Analysis</h3>
+
+                  {/* Recommended Tier */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm text-white/60">Recommended Tier:</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        lastSupplier.recommended_tier === 'premium' ? 'bg-purple-500/20 text-purple-400' :
+                        lastSupplier.recommended_tier === 'mid-range' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-green-500/20 text-green-400'
+                      }`}>
+                        {lastSupplier.recommended_tier}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap mb-3">
+                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                        <span className="text-xs text-white/50">Confidence</span>
+                        <div className="text-lg font-bold text-accent">
+                          {lastSupplier.tier_confidence_score}%
+                        </div>
+                      </div>
+
+                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                        <span className="text-xs text-white/50">Quality Score</span>
+                        <div className="text-lg font-bold text-green-400">
+                          {lastSupplier.base_quality_score}/100
+                        </div>
+                      </div>
+
+                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                        <span className="text-xs text-white/50">Seasonal</span>
+                        <div className="text-lg font-bold text-orange-400">
+                          {lastSupplier.seasonal_cost_modifier}x
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cost Estimates Preview */}
+                  {lastSupplier.cost_estimates && (
+                    <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                      <div className="text-xs text-orange-400 font-medium mb-2">💰 Cost Estimates (F&B)</div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-white/50">Budget:</span>
+                          <span className="text-white font-medium ml-1">
+                            ${lastSupplier.cost_estimates.food_and_beverage.budget.toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-white/50">Mid:</span>
+                          <span className="text-white font-medium ml-1">
+                            ${lastSupplier.cost_estimates.food_and_beverage['mid-range'].toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-white/50">Premium:</span>
+                          <span className="text-white font-medium ml-1">
+                            ${lastSupplier.cost_estimates.food_and_beverage.premium.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key Insights */}
+                  {lastSupplier.key_insights && lastSupplier.key_insights.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      {lastSupplier.key_insights.slice(0, 2).map((insight: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs text-white/70">
+                          <span className="text-orange-400 mt-0.5">•</span>
+                          <span>{insight}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

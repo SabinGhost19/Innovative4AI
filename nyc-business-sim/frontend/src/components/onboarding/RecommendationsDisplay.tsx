@@ -22,6 +22,7 @@ type Props = {
         demographics?: boolean;
         lifestyle?: boolean;
         industry?: boolean;
+        supplier?: boolean;
         aggregator?: boolean;
     };
 };
@@ -47,7 +48,7 @@ const RecommendationsDisplay = ({ recommendations, isLoading, agentStatus }: Pro
                     </div>
 
                     {/* Agent Status */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
                         <AgentStatusCard
                             name="Demographics"
                             completed={agentStatus?.demographics || false}
@@ -62,6 +63,11 @@ const RecommendationsDisplay = ({ recommendations, isLoading, agentStatus }: Pro
                             name="Industry"
                             completed={agentStatus?.industry || false}
                             icon="💼"
+                        />
+                        <AgentStatusCard
+                            name="Supplier"
+                            completed={agentStatus?.supplier || false}
+                            icon="📦"
                         />
                         <AgentStatusCard
                             name="Aggregator"
@@ -102,7 +108,7 @@ const RecommendationsDisplay = ({ recommendations, isLoading, agentStatus }: Pro
             {/* Footer Note */}
             <div className="glass-card p-4 rounded-lg border border-primary/20 bg-primary/5">
                 <p className="text-sm text-center text-muted-foreground">
-                    💡 <span className="font-semibold">Pro Tip:</span> Recommendations are ranked by confidence score based on real-time Census Bureau data (ACS 2022 & 2021)
+                    💡 <span className="font-semibold">Pro Tip:</span> Recommendations are ranked by confidence score based on real-time Census data + NYC supplier market analysis
                 </p>
             </div>
         </div>
