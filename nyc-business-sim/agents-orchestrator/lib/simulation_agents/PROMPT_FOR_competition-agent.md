@@ -13,7 +13,7 @@ Copy everything below this line and paste into Claude.
 
 ## 📝 Cum să Folosești Acest Prompt
 
-1. Înlocuiește `market-context-agent` cu numele agentului (ex: `market-context-agent`, `supplier-agent`)
+1. Înlocuiește `competition-agent` cu numele agentului (ex: `market-context-agent`, `supplier-agent`)
 2. Copiază prompt-ul complet în Claude
 3. Atașează fișierele relevante când este necesar
 
@@ -28,7 +28,7 @@ Tu ești un senior TypeScript developer expert în Vercel AI SDK, OpenAI integra
 
 ## SARCINA TA
 
-Implementează agentul **market-context-agent** pentru sistemul NYC Business Simulator, conform arhitecturii complete definite în documentația de mai jos.
+Implementează agentul **competition-agent** pentru sistemul NYC Business Simulator, conform arhitecturii complete definite în documentația de mai jos.
 
 ## CERINȚE CRITICE
 
@@ -197,7 +197,7 @@ Identifică main trend-ul și impactul său asupra businessului.
 
 ---
 
-## 🎯 SPECIFICAȚII PENTRU AGENTUL market-context-agent
+## 🎯 SPECIFICAȚII PENTRU AGENTUL competition-agent
 
 <AICI VA FI SECȚIUNEA SPECIFICĂ PENTRU FIECARE AGENT - VEZI MAI JOS>
 
@@ -254,7 +254,7 @@ Verifică că implementarea ta îndeplinește TOATE criteriile:
 
 Livrează:
 
-1. **Fișierul complet**: `market-context-agent.ts`
+1. **Fișierul complet**: `competition-agent.ts`
 2. **Comentarii explicative** în cod
 3. **Exemplu de test** (opțional dar apreciat):
 
@@ -302,7 +302,7 @@ console.log('Result:', result);
 ```
 Input Data (Census, Trends, etc.)
         ↓
-  market-context-agent Agent
+  competition-agent Agent
         ↓
   LLM Processing (OpenAI)
         ↓
@@ -378,10 +378,10 @@ Dacă ai probleme:
 Bazându-te pe:
 - Arhitectura completă (ARCHITECTURE.md)
 - Agenții existenți (events-agent.ts, trends-agent.ts)
-- Specificațiile pentru market-context-agent
+- Specificațiile pentru competition-agent
 - Checklist-ul de mai sus
 
-Generează codul complet, funcțional, production-ready pentru **market-context-agent**.
+Generează codul complet, funcțional, production-ready pentru **competition-agent**.
 
 GO! 🚀
 ```
