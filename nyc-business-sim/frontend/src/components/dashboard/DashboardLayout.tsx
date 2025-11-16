@@ -30,17 +30,13 @@ const DashboardLayout = ({ children, strategyPanel }: Props) => {
 
   return (
     <div className="min-h-screen bg-black flex relative">
-      {/* Video Background */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 w-full h-full object-cover -z-10"
-        style={{ filter: "blur(3px) brightness(0.5)" }}
-      >
-        <source src="/bg_video.mp4" type="video/mp4" />
-      </video>
+      {/* Subtle gradient background instead of video */}
+      <div 
+        className="fixed inset-0 -z-10"
+        style={{
+          background: 'radial-gradient(ellipse at top, rgba(13, 115, 119, 0.15) 0%, rgba(0, 0, 0, 0.95) 50%, rgba(0, 0, 0, 1) 100%)',
+        }}
+      />
 
       {/* Minimalist Glassy Sidebar */}
       <aside

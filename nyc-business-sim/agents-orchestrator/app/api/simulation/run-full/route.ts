@@ -280,18 +280,43 @@ export async function POST(request: NextRequest) {
     const phase5Start = Date.now();
     
     // Calculate revenue based on business type
-    const avgSpend = customerData.customer_segments.reduce((sum: number, seg: any) => {
+    let avgSpend = customerData.customer_segments.reduce((sum: number, seg: any) => {
       return sum + (seg.avg_spend * seg.size);
     }, 0) / (customerData.total_active_customers || 1);
     
-    // Get correct visit frequency based on business type
+    // ===== SAFETY: Cap unrealistic prices =====
+    // Define realistic price ranges per business type
     const businessTypeLower = businessType.toLowerCase();
+    let maxRealisticPrice = 200; // Default cap
+    let isSubscriptionBased = false;
+    
+    if (businessTypeLower.includes('gym') || businessTypeLower.includes('fitness')) {
+      maxRealisticPrice = 150; // Gym memberships: $50-150/month
+      isSubscriptionBased = true;
+    } else if (businessTypeLower.includes('coffee') || businessTypeLower.includes('cafe')) {
+      maxRealisticPrice = 15; // Coffee: $5-15 per visit
+    } else if (businessTypeLower.includes('restaurant')) {
+      maxRealisticPrice = 100; // Restaurant: $15-100 per meal
+    } else if (businessTypeLower.includes('barbershop') || businessTypeLower.includes('barber') || businessTypeLower.includes('salon')) {
+      maxRealisticPrice = 80; // Haircut: $20-80
+    } else if (businessTypeLower.includes('boutique') || businessTypeLower.includes('retail')) {
+      maxRealisticPrice = 300; // Retail: varies widely
+    }
+    
+    // Cap the average spend to realistic maximum
+    if (avgSpend > maxRealisticPrice) {
+      console.log(`⚠️  Capping unrealistic avg_spend from $${avgSpend.toFixed(2)} to $${maxRealisticPrice}`);
+      avgSpend = maxRealisticPrice;
+    }
+    
+    // Get correct visit frequency based on business type
     let avgVisitFrequency = 2; // Default
     
-    if (businessTypeLower.includes('coffee') || businessTypeLower.includes('cafe')) {
+    if (isSubscriptionBased) {
+      // Subscription-based: customers pay monthly regardless of visits
+      avgVisitFrequency = 1; // 1 payment per month
+    } else if (businessTypeLower.includes('coffee') || businessTypeLower.includes('cafe')) {
       avgVisitFrequency = 5; // Coffee shops: almost daily visits
-    } else if (businessTypeLower.includes('gym') || businessTypeLower.includes('fitness')) {
-      avgVisitFrequency = 12; // Gyms: frequent visits
     } else if (businessTypeLower.includes('restaurant')) {
       avgVisitFrequency = 2; // Restaurants: weekly
     } else if (businessTypeLower.includes('boutique')) {

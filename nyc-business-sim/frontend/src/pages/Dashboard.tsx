@@ -659,7 +659,15 @@ const Dashboard = () => {
         )}
       </div>
 
-      <OverviewTab />
+      <OverviewTab 
+        sessionId={sessionId}
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+        simulationOutputs={simulationOutputs?.outputs || null}
+        businessLocation={businessData.location}
+        areaId={businessData.areaId}
+        industryType={businessData.industry}
+      />
     </DashboardLayout>
   );
 };
