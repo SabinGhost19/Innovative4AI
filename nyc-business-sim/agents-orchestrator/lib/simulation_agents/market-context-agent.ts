@@ -39,6 +39,8 @@ import {
  * 1. Calculate mathematical metrics (saturation, risk, climate, capacity)
  * 2. LLM generates qualitative insights (trends, strategy narrative)
  * 3. Combine: Math provides hard numbers, LLM provides context
+ * 
+ * ENHANCED: Now considers historical business performance to adjust market risk
  */
 export async function analyzeMarketContext(
   businessType: string,
@@ -46,7 +48,13 @@ export async function analyzeMarketContext(
   censusData: DetailedCensusData,
   survivalData: SurvivalData | null,
   currentMonth: number,
-  currentYear: number
+  currentYear: number,
+  historicalPerformance?: {
+    previousRevenue: number;
+    previousProfit: number;
+    previousCustomers: number;
+    monthsInBusiness: number;
+  }
 ): Promise<z.infer<typeof MarketContextSchema>> {
   
   const demo = censusData.demographics_detailed;
@@ -98,12 +106,41 @@ export async function analyzeMarketContext(
   
   // 5. Market risk score
   const survivalRate5Year = survivalData?.survival_rate_5_year || 50; // Default 50%
-  const marketRiskScore = calculateMarketRisk(
+  let marketRiskScore = calculateMarketRisk(
     survivalRate5Year,
     industrySaturation,
     medianIncome,
     povertyRate
   );
+  
+  // ENHANCEMENT: Adjust risk based on actual business performance
+  if (historicalPerformance && historicalPerformance.monthsInBusiness > 0) {
+    const { previousRevenue, previousProfit, monthsInBusiness } = historicalPerformance;
+    
+    // Positive performance reduces perceived market risk
+    if (previousProfit > 0) {
+      // Each month of profitability reduces risk by 2% (max -20%)
+      const profitBonus = Math.min(20, monthsInBusiness * 2);
+      marketRiskScore -= profitBonus;
+    }
+    
+    // Negative performance increases risk
+    if (previousProfit < -10000) {
+      // Large losses increase risk
+      const lossMultiplier = Math.abs(previousProfit) / 10000;
+      marketRiskScore += Math.min(15, lossMultiplier * 5);
+    }
+    
+    // Revenue growth trajectory
+    if (previousRevenue > 0 && monthsInBusiness >= 2) {
+      // If generating revenue, slightly reduce risk
+      marketRiskScore -= 5;
+    }
+  }
+  
+  // Clamp risk score to 0-100
+  marketRiskScore = Math.max(0, Math.min(100, Math.round(marketRiskScore)));
+  
   let marketRiskLevel = classifyMarketRisk(marketRiskScore);
   
   // Schema only supports low/medium/high, map very_high -> high
@@ -160,10 +197,17 @@ Focus on:
 🏢 BUSINESS:
 - Type: ${businessType}
 - Location: ${location.neighborhood}, ${location.county}
+${historicalPerformance && historicalPerformance.monthsInBusiness > 0 ? `
+📈 BUSINESS PERFORMANCE (Month ${historicalPerformance.monthsInBusiness}):
+- Previous Revenue: $${historicalPerformance.previousRevenue.toLocaleString()}
+- Previous Profit: $${historicalPerformance.previousProfit.toLocaleString()} ${historicalPerformance.previousProfit > 0 ? '✅ PROFITABLE' : '❌ LOSS'}
+- Active Customers: ${historicalPerformance.previousCustomers.toLocaleString()}
+- Status: ${historicalPerformance.previousProfit > 0 ? 'Beating odds - performing better than market risk suggests' : 'Struggling - needs strategic pivot'}
+` : '- Status: NEW BUSINESS (Month 1)'}
 
 📊 CALCULATED METRICS (ALREADY DONE):
 - Industry Saturation: ${industrySaturation}%
-- Market Risk: ${marketRiskLevel} (${marketRiskScore}/100)
+- Market Risk: ${marketRiskLevel} (${marketRiskScore}/100)${historicalPerformance && historicalPerformance.monthsInBusiness > 0 ? ` [Adjusted based on ${historicalPerformance.monthsInBusiness} months performance]` : ''}
 - Economic Climate: ${economicClimate}
 - Estimated Competitors: ${estimatedCompetitors}
 - Market Capacity: ${marketCapacity.toLocaleString()} potential monthly customers

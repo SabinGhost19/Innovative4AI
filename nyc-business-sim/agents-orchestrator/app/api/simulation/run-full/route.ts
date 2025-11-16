@@ -66,13 +66,23 @@ export async function POST(request: NextRequest) {
     console.log('🏗️ PHASE 1: Market Context...');
     const phase1Start = Date.now();
     
+    // Calculate months in business (assume month 1 if no previous data)
+    const monthsInBusiness = prevState.revenue > 0 || prevState.customers > 0 ? currentMonth : 0;
+    
     const marketContext = await analyzeMarketContext(
       businessType,
       location,
       censusData,
       survivalData || null,
       currentMonth,
-      currentYear
+      currentYear,
+      // Pass historical performance for dynamic risk adjustment
+      monthsInBusiness > 0 ? {
+        previousRevenue: prevState.revenue,
+        previousProfit: prevState.profit,
+        previousCustomers: prevState.customers,
+        monthsInBusiness: monthsInBusiness,
+      } : undefined
     );
     
     phaseTimes.phase1_market_context = Date.now() - phase1Start;

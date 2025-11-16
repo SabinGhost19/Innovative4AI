@@ -20,6 +20,14 @@ const Dashboard = () => {
   const [lastTrends, setLastTrends] = useState<any>(null);
   const [simulationOutputs, setSimulationOutputs] = useState<any>(null);
 
+  // Track previous month state for accumulation
+  const [previousMonthState, setPreviousMonthState] = useState({
+    revenue: 0,
+    profit: 0,
+    customers: 0,
+    cashBalance: 0,
+  });
+
   useEffect(() => {
     const data = localStorage.getItem("businessData");
     if (!data) {
@@ -29,6 +37,14 @@ const Dashboard = () => {
     const business = JSON.parse(data);
     setBusinessData(business);
     setCashBalance(business.budget);
+
+    // Initialize previous month state with starting budget
+    setPreviousMonthState({
+      revenue: 0,
+      profit: 0,
+      customers: 0,
+      cashBalance: business.budget,
+    });
   }, [navigate]);
 
   const handleNextMonth = async () => {
@@ -164,12 +180,7 @@ const Dashboard = () => {
             target_employee_count: 3,
             avg_hourly_wage: 20
           },
-          previousMonthState: {
-            revenue: 0,
-            profit: 0,
-            customers: 0,
-            cashBalance: businessData.budget
-          }
+          previousMonthState: previousMonthState  // Use tracked state!
         }),
       });
 
@@ -190,7 +201,15 @@ const Dashboard = () => {
           setCurrentMonth(currentMonth + 1);
         }
 
-        // Update cash balance
+        // Update previous month state for next iteration
+        setPreviousMonthState({
+          revenue: data.outputs.financialData?.profit_loss?.revenue || 0,
+          profit: data.outputs.financialData?.profit_loss?.net_profit || 0,
+          customers: data.outputs.customerData?.total_active_customers || 0,
+          cashBalance: data.outputs.financialData?.cash_flow?.closing_balance || previousMonthState.cashBalance,
+        });
+
+        // Update cash balance display
         if (data.outputs.financialData?.cash_flow?.closing_balance) {
           setCashBalance(data.outputs.financialData.cash_flow.closing_balance);
         }
