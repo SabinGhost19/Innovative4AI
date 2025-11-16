@@ -484,18 +484,18 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Events Card */}
           {lastEvent && (
-            <div className="glass-card p-6 rounded-2xl border border-white/10">
+            <div className="backdrop-blur-xl bg-black/30 p-6 rounded-2xl border border-white/10 hover:border-primary/30 transition-all duration-300">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">🎲</span>
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-white mb-2">Latest Event</h3>
-                  <h4 className="text-accent font-medium mb-2">{lastEvent.nume_eveniment}</h4>
+                  <h4 className="text-primary font-medium mb-2">{lastEvent.nume_eveniment}</h4>
                   <p className="text-sm text-white/70 mb-3">{lastEvent.descriere_scurta}</p>
 
                   <div className="flex items-center gap-4">
-                    <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                    <div className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10">
                       <span className="text-xs text-white/50">Customer Impact</span>
                       <div className={`text-lg font-bold ${lastEvent.impact_clienti_lunar > 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {lastEvent.impact_clienti_lunar > 0 ? '+' : ''}{lastEvent.impact_clienti_lunar}%
@@ -515,9 +515,9 @@ const Dashboard = () => {
 
           {/* Trends Card */}
           {lastTrends && (
-            <div className="glass-card p-6 rounded-2xl border border-white/10">
+            <div className="backdrop-blur-xl bg-black/30 p-6 rounded-2xl border border-white/10 hover:border-accent/30 transition-all duration-300">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
                   <span className="text-2xl">📊</span>
                 </div>
                 <div className="flex-1">
@@ -529,7 +529,7 @@ const Dashboard = () => {
                     <p className="text-sm text-white/70 mb-2">{lastTrends.main_trend.description}</p>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                      <div className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10">
                         <span className="text-xs text-white/50">Impact Score</span>
                         <div className={`text-lg font-bold ${lastTrends.main_trend.impact_score > 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {lastTrends.main_trend.impact_score > 0 ? '+' : ''}{lastTrends.main_trend.impact_score}
@@ -546,8 +546,8 @@ const Dashboard = () => {
                   </div>
 
                   {/* Actionable Insight */}
-                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <div className="text-xs text-blue-400 font-medium mb-1">💡 Action Item</div>
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="text-xs text-primary font-medium mb-1">💡 Action Item</div>
                     <p className="text-sm text-white/80">{lastTrends.main_trend.actionable_insight}</p>
                   </div>
 
@@ -575,12 +575,12 @@ const Dashboard = () => {
 
         {/* Secondary Trends */}
         {lastTrends?.secondary_trends && lastTrends.secondary_trends.length > 0 && (
-          <div className="glass-card p-6 rounded-2xl border border-white/10">
+          <div className="backdrop-blur-xl bg-black/30 p-6 rounded-2xl border border-white/10">
             <h3 className="text-lg font-semibold text-white mb-4">Secondary Trends</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {lastTrends.secondary_trends.map((trend: any, index: number) => (
-                <div key={index} className="p-4 rounded-lg bg-white/5 border border-white/10">
-                  <h4 className="text-sm font-medium text-accent mb-1">{trend.trend_name}</h4>
+                <div key={index} className="p-4 rounded-lg bg-black/40 border border-white/10">
+                  <h4 className="text-sm font-medium text-primary mb-1">{trend.trend_name}</h4>
                   <p className="text-xs text-white/60 mb-2">{trend.description}</p>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-bold ${trend.impact_score > 0 ? 'text-green-400' : 'text-red-400'}`}>
