@@ -6,7 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  X
+  X,
+  History
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const navigationItems = [
   { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
   { name: "Reports", path: "/dashboard/reports", icon: FileText },
   { name: "Competitors", path: "/dashboard/competitors", icon: Users },
+  { name: "Time Travel", path: "/dashboard/revert", icon: History },
 ];
 
 const DashboardLayout = ({ children, strategyPanel }: Props) => {
@@ -125,7 +127,7 @@ const DashboardLayout = ({ children, strategyPanel }: Props) => {
 
       {/* Strategy Drawer Overlay */}
       {strategyOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300"
           onClick={() => setStrategyOpen(false)}
         />

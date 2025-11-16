@@ -11,6 +11,7 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Competitors from "./pages/Competitors";
 import Reports from "./pages/Reports";
+import Revert from "./pages/Revert";
 import AreaAnalysisDebug from "./pages/AreaAnalysisDebug";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/competitors" element={<Competitors />} />
           <Route path="/dashboard/reports" element={<Reports />} />
+          <Route path="/dashboard/revert" element={<Revert />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

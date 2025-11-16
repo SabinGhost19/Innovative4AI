@@ -270,3 +270,82 @@ class SimulationStateService:
             "cash_balance": float(state.cash_balance),
             "created_at": state.created_at.isoformat()
         } for state in states]
+    
+    @staticmethod
+    def revert_to_month(db: Session, session_id: str, target_month: int, target_year: int) -> Dict:
+        """
+        Revert simulation to a previous month by deleting all states after target month.
+        This is a destructive operation - all progress after the target month is lost.
+        
+        Args:
+            db: Database session
+            session_id: UUID of the simulation session
+            target_month: Month to revert to (1-12)
+            target_year: Year to revert to
+            
+        Returns:
+            Dict with updated session state and deleted count
+            
+        Raises:
+            ValueError: If target month doesn't exist or is invalid
+        """
+        session_uuid = uuid.UUID(session_id)
+        
+        # 1. Verify session exists
+        session = db.query(SimulationSession).filter(
+            SimulationSession.id == session_uuid
+        ).first()
+        
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+        
+        # 2. Verify target month exists in history
+        target_state = db.query(SimulationMonthlyState).filter(
+            SimulationMonthlyState.session_id == session_uuid,
+            SimulationMonthlyState.month == target_month,
+            SimulationMonthlyState.year == target_year
+        ).first()
+        
+        if not target_state:
+            raise ValueError(
+                f"Target month {target_month}/{target_year} not found in session history"
+            )
+        
+        # 3. Delete all states AFTER the target month
+        # We need to compare properly: states where (year > target_year) OR (year == target_year AND month > target_month)
+        deleted_states = db.query(SimulationMonthlyState).filter(
+            SimulationMonthlyState.session_id == session_uuid
+        ).filter(
+            (SimulationMonthlyState.year > target_year) |
+            (
+                (SimulationMonthlyState.year == target_year) &
+                (SimulationMonthlyState.month > target_month)
+            )
+        ).delete(synchronize_session=False)
+        
+        # 4. Update session to target month state
+        session.current_month = target_month
+        session.current_year = target_year
+        session.updated_at = datetime.utcnow()
+        
+        db.commit()
+        
+        # 5. Return updated state
+        return {
+            "success": True,
+            "session_id": session_id,
+            "reverted_to": {
+                "month": target_month,
+                "year": target_year
+            },
+            "current_state": {
+                "month": target_month,
+                "year": target_year,
+                "revenue": float(target_state.revenue),
+                "profit": float(target_state.profit),
+                "customers": target_state.customers,
+                "cash_balance": float(target_state.cash_balance)
+            },
+            "deleted_months": deleted_states,
+            "message": f"Successfully reverted to Month {target_month}/{target_year}. Deleted {deleted_states} future states."
+        }

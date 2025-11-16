@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { BusinessData } from "./Onboarding";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -8,10 +8,13 @@ import SimulationResults from "@/components/dashboard/SimulationResults";
 import DecisionPanel, { PlayerDecisions } from "@/components/dashboard/DecisionPanel";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle2 } from "lucide-react";
 import { getAuthState, createSession, saveMonthlyState, logout, updateSession } from "@/lib/auth";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [businessData, setBusinessData] = useState<BusinessData | null>(null);
   const [currentMonth, setCurrentMonth] = useState(1);
@@ -20,7 +23,18 @@ const Dashboard = () => {
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const [lastEvent, setLastEvent] = useState<any>(null);
   const [lastTrends, setLastTrends] = useState<any>(null);
-  const [simulationOutputs, setSimulationOutputs] = useState<any>(null);
+  const [simulationOutputs, setSimulationOutputs] = useState<any>(() => {
+    // Try to restore simulation outputs from localStorage
+    const stored = localStorage.getItem("current_simulation_outputs");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -43,6 +57,33 @@ const Dashboard = () => {
     inventory_strategy: 'balanced',
     working_hours_per_week: 40,
   });
+
+  // Revert success message state
+  const [showRevertSuccess, setShowRevertSuccess] = useState(false);
+  const [revertMessage, setRevertMessage] = useState("");
+
+  useEffect(() => {
+    // Check if we just came back from a revert
+    if (location.state?.revertSuccess) {
+      setShowRevertSuccess(true);
+      setRevertMessage(
+        `Successfully reverted to ${location.state.revertedTo}. ${location.state.deletedMonths} future months deleted.`
+      );
+
+      // Show toast notification
+      toast({
+        title: "Time Travel Successful",
+        description: `Reverted to ${location.state.revertedTo}`,
+        variant: "default",
+      });
+
+      // Clear location state
+      window.history.replaceState({}, document.title);
+
+      // Hide success message after 10 seconds
+      setTimeout(() => setShowRevertSuccess(false), 10000);
+    }
+  }, [location.state, toast]);
 
   useEffect(() => {
     const authState = getAuthState();
@@ -313,6 +354,10 @@ const Dashboard = () => {
 
     setIsLoadingEvent(true);
 
+    // Clear previous simulation outputs when starting new simulation
+    setSimulationOutputs(null);
+    localStorage.removeItem("current_simulation_outputs");
+
     try {
       // First, get census data from backend
       const censusResponse = await fetch(`http://localhost:8000/api/get-area/${businessData.areaId}`);
@@ -371,6 +416,9 @@ const Dashboard = () => {
 
       if (data.success && data.outputs) {
         setSimulationOutputs(data);
+
+        // Save simulation outputs to localStorage for persistence
+        localStorage.setItem("current_simulation_outputs", JSON.stringify(data));
 
         // Update month
         if (currentMonth === 12) {
@@ -445,6 +493,18 @@ const Dashboard = () => {
         isLoadingNextMonth={isLoadingEvent}
         onLogout={handleLogout}
       />
+
+      {/* Revert Success Alert */}
+      {showRevertSuccess && (
+        <div className="px-8 pt-4">
+          <Alert className="border-green-500/50 bg-green-500/10">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <AlertDescription className="text-green-700 dark:text-green-400 font-medium">
+              {revertMessage}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="px-8 py-4 flex gap-4">

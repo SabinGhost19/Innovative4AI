@@ -221,6 +221,41 @@ def get_previous_state(session_id: str, month: int, year: int, db: Session = Dep
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/simulation/revert")
+def revert_to_month(
+    session_id: str,
+    target_month: int,
+    target_year: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Revert simulation to a previous month.
+    
+    WARNING: This is a DESTRUCTIVE operation. All progress after the target month will be permanently deleted.
+    
+    Body params:
+    - session_id: UUID of the simulation session
+    - target_month: Month to revert to (1-12)
+    - target_year: Year to revert to
+    
+    Returns:
+    - Updated session state
+    - Number of deleted future states
+    
+    Example: POST /api/simulation/revert?session_id=xxx&target_month=3&target_year=2024
+    """
+    try:
+        result = SimulationStateService.revert_to_month(
+            db, session_id, target_month, target_year
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        print(f"Error reverting simulation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to revert simulation: {str(e)}")
+
+
 @app.get("/")
 def read_root():
     return {"message": "NYC Business Simulator Backend API", "status": "running"}
