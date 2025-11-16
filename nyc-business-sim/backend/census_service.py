@@ -3,16 +3,33 @@ import json
 import os
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
-from sqlalchemy.orm import Session
-from database import SessionLocal, CensusTractData
 
 load_dotenv()
 
+CENSUS_VARIABLES_MARKET_ANALYSIS = {
+    "NAME": "Numele Zonei",
+    "B01001_001E": "Populație Totală (Rezidenți)",
+    "B01002_001E": "Vârsta Medie (Rezidenți)",
+    "B19013_001E": "Venit Mediu pe Gospodărie ($)",
+    "B19301_001E": "Venit pe Cap de Locuitor ($)",
+    "B17001_002E": "Număr Persoane sub Pragul Sărăciei",
+    "B15003_001E": "Total Populație 25+ (pt Educație)",
+    "B15003_022E": "Educație: Nivel Licență",
+    "B15003_023E": "Educație: Nivel Master",
+    "B15003_025E": "Educație: Nivel Doctorat",
+    "B25003_001E": "Total Unități Locative",
+    "B25003_002E": "Locuințe Ocupate de Proprietar",
+    "B25003_003E": "Locuințe Ocupate de Chiriaș",
+    "B25031_001E": "Chiria Medie Brută ($)",
+    "B25077_001E": "Valoarea Medie a Locuinței ($)",
+    "C24050_001E": "Total Forță de Muncă (Civili 16+)",
+    "C24050_007E": "Industrie: Finanțe, Asigurări, Real Estate",
+    "C24050_018E": "Industrie: Artă, Divertisment, HoReCa",
+    "C24050_029E": "Industrie: Servicii Profesionale, Științifice, Management",
+}
+
 def get_census_tract(lat: str, lon: str) -> Optional[Dict[str, str]]:
-    """
-    Convertește coordonatele (lat, lon) în FIPS codes (State, County, Tract).
-    MODIFICAT: Folosește geocoding API pentru a obține FIPS, apoi verifică în baza de date locală.
-    """
+    """Convertește coordonatele (lat, lon) în FIPS codes (State, County, Tract)."""
     
     print(f"--- Geocoding {lat}, {lon} ---")
     url = (
@@ -48,102 +65,96 @@ def get_census_tract(lat: str, lon: str) -> Optional[Dict[str, str]]:
         print(f"Eroare la interogarea API-ului Geocoding: {e}")
         return None
 
-
-def get_census_data_from_db(fips_codes: Dict[str, str]) -> Optional[Dict[str, Any]]:
-    """
-    Interoghează BAZA DE DATE LOCALĂ pentru datele census în loc de API-ul Census.
-    Returnează date în același format ca get_census_data() pentru compatibilitate.
-    """
+def get_census_data(fips_codes: Dict[str, str], api_key: str) -> Optional[Dict[str, Any]]:
+    """Interoghează API-ul Census (ACS) pentru date de market analysis și returnează rezultatele."""
     
     if not fips_codes:
         print("Interogare Census omisă (nu s-au găsit FIPS codes).")
         return None
 
-    print("--- Interogare BAZA DE DATE LOCALĂ pentru date census ---")
-    
-    # Construim FIPS_Tract_Full pentru căutare
-    state = fips_codes['state']
-    county = fips_codes['county']
-    tract = fips_codes['tract']
-    fips_full = f"{state}{county}{tract}"
-    
-    print(f"Căutare în DB pentru FIPS: {fips_full}")
-    
-    db = SessionLocal()
-    try:
-        # Căutăm în baza de date
-        census_record = db.query(CensusTractData).filter(
-            CensusTractData.fips_tract_full == fips_full
-        ).first()
-        
-        if not census_record:
-            print(f"❌ Nu s-au găsit date în DB pentru FIPS: {fips_full}")
-            return None
-        
-        print(f"✅ Date găsite în DB pentru: {census_record.area_name}")
-        
-        # Convertim datele din DB în formatul compatibil cu API-ul vechi
-        result = {
-            "fips_codes": fips_codes,
-            "area_name": census_record.area_name or "N/A",
-            "demographics": {
-                "NAME": census_record.area_name,
-                "B01001_001E": str(int(census_record.resident_population_total)) if census_record.resident_population_total else None,
-                "B01002_001E": str(census_record.resident_median_age) if census_record.resident_median_age else None,
-                "B19013_001E": str(int(census_record.resident_median_household_income)) if census_record.resident_median_household_income else None,
-                "B19301_001E": None,  # Nu avem acest câmp în CSV
-                "B17001_002E": str(int(census_record.resident_population_total * census_record.pct_poverty)) if (census_record.resident_population_total and census_record.pct_poverty) else None,
-                "B15003_001E": None,  # Nu avem total population 25+
-                "B15003_022E": str(int(census_record.resident_population_total * census_record.pct_bachelors)) if (census_record.resident_population_total and census_record.pct_bachelors) else None,
-                "B15003_023E": None,  # Nu avem masters degree separat
-                "B15003_025E": None,  # Nu avem doctorate separat
-                "B25003_001E": None,  # Nu avem total housing units
-                "B25003_002E": None,  # Nu avem owner occupied
-                "B25003_003E": None,  # Poate fi calculat din pct_renters dacă avem total
-                "B25031_001E": None,  # Nu avem median rent
-                "B25077_001E": None,  # Nu avem median home value
-                "C24050_001E": str(int(census_record.workforce_total_jobs)) if census_record.workforce_total_jobs else None,
-                "C24050_007E": None,  # Nu avem finance/insurance
-                "C24050_018E": None,  # Nu avem arts/entertainment
-                "C24050_029E": str(int(census_record.workforce_total_jobs * census_record.pct_jobs_prof_services)) if (census_record.workforce_total_jobs and census_record.pct_jobs_prof_services) else None,
-                
-                # Date calculate
-                "poverty_rate": round(census_record.pct_poverty * 100, 2) if census_record.pct_poverty else 0,
-                "renter_rate": round(census_record.pct_renters * 100, 2) if census_record.pct_renters else 0,
-                
-                # Date suplimentare din CSV
-                "cluster": census_record.cluster,
-                "pct_bachelors": census_record.pct_bachelors,
-                "pct_jobs_young": census_record.pct_jobs_young,
-                "pct_jobs_high_earn": census_record.pct_jobs_high_earn,
-                "pct_jobs_prof_services": census_record.pct_jobs_prof_services,
-                "pct_jobs_healthcare": census_record.pct_jobs_healthcare,
-            }
-        }
-        
-        return result
-        
-    except Exception as e:
-        print(f"❌ Eroare la interogarea bazei de date: {e}")
+    if not api_key or api_key == "CHEIA_TA_CENSUS_AICI":
+        print("Cheie API Census invalidă.")
         return None
-    finally:
-        db.close()
 
-
-def get_census_data(fips_codes: Dict[str, str], api_key: str) -> Optional[Dict[str, Any]]:
-    """
-    FUNCȚIE DEPRECATED - Păstrată pentru compatibilitate.
-    Acum redirecționează către get_census_data_from_db().
-    """
-    print("⚠️  get_census_data() este deprecated. Se folosește baza de date locală...")
-    return get_census_data_from_db(fips_codes)
-
+    print("--- Interogare Census API pentru date agregate ---")
+    
+    variables_to_get = ",".join(CENSUS_VARIABLES_MARKET_ANALYSIS.keys())
+    
+    url = (
+        f"https://api.census.gov/data/2022/acs/acs5" 
+        f"?get={variables_to_get}"
+        f"&for=tract:{fips_codes['tract']}"
+        f"&in=state:{fips_codes['state']}+county:{fips_codes['county']}"
+        f"&key={api_key}"
+    )
+    
+    response = None
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data and len(data) > 1:
+            headers = data[0]
+            values = data[1]
+            raw_results = dict(zip(headers, values))
+            
+            # Convertim rezultatele într-un format structurat
+            result = {
+                "fips_codes": fips_codes,
+                "area_name": raw_results.get("NAME", "N/A"),
+                "demographics": {}
+            }
+            
+            # Procesăm fiecare variabilă
+            for code, name in CENSUS_VARIABLES_MARKET_ANALYSIS.items():
+                value = raw_results.get(code, None)
+                result["demographics"][code] = value
+            
+            # Calculăm procente utile
+            try:
+                total_pop = int(raw_results.get('B01001_001E', 0))
+                poverty_pop = int(raw_results.get('B17001_002E', 0))
+                poverty_rate = (poverty_pop / total_pop * 100) if total_pop > 0 else 0
+                result["demographics"]["poverty_rate"] = round(poverty_rate, 2)
+                
+                total_housing = int(raw_results.get('B25003_001E', 0))
+                renter_housing = int(raw_results.get('B25003_003E', 0))
+                renter_rate = (renter_housing / total_housing * 100) if total_housing > 0 else 0
+                result["demographics"]["renter_rate"] = round(renter_rate, 2)
+                
+            except Exception as e:
+                print(f"Eroare la calcularea procentelor: {e}")
+                result["demographics"]["poverty_rate"] = 0
+                result["demographics"]["renter_rate"] = 0
+            
+            return result
+                
+        else:
+            print("Nu s-au găsit date demografice pentru acest tract.")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Eroare HTTP la interogarea Census API: {e}")
+        if response:
+            print(f"Răspuns Server (Text): {response.text}")
+        return None
+            
+    except json.JSONDecodeError:
+        print("Eroare: Răspunsul API nu este JSON valid.")
+        if response:
+            print(f"Răspuns: {response.text}")
+        return None
+    
+    except (IndexError, TypeError) as e:
+        print(f"Eroare la parsarea răspunsului Census API: {e}")
+        return None
 
 def analyze_area(lat: str, lon: str) -> Optional[Dict[str, Any]]:
-    """
-    Funcție principală care face analiza completă a zonei.
-    MODIFICAT: Folosește baza de date locală în loc de API-ul Census.
-    """
+    """Funcție principală care face analiza completă a zonei."""
+    
+    api_key = os.getenv('CENSUS_API_KEY')
     
     print(f"*** Începere analiză de piață pentru ({lat}, {lon}) ***")
     fips_codes = get_census_tract(lat, lon)
@@ -151,8 +162,7 @@ def analyze_area(lat: str, lon: str) -> Optional[Dict[str, Any]]:
     if not fips_codes:
         return None
     
-    # Folosim noua funcție care citește din DB
-    census_data = get_census_data_from_db(fips_codes)
+    census_data = get_census_data(fips_codes, api_key)
     
     if census_data:
         # Adăugăm coordonatele originale
