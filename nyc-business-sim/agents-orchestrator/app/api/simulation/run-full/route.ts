@@ -88,13 +88,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Set defaults
+    // Set defaults with enhanced player decisions
     const decisions = playerDecisions || {
       pricing_strategy: 'competitive',
+      product_price_modifier: 1.0,
       marketing_spend: 1000,
       quality_level: 'standard',
       target_employee_count: 3,
-      avg_hourly_wage: 20
+      avg_hourly_wage: 20,
+      inventory_strategy: 'balanced',
+      working_hours_per_week: 40,
     };
 
     // Fetch previous state from backend if we have a sessionId
@@ -197,7 +200,9 @@ export async function POST(request: NextRequest) {
         censusData,
         estimatedRevenue,
         currentMonth,
-        currentYear
+        currentYear,
+        monthsInBusiness,
+        decisions.inventory_strategy || 'balanced'
       ),
       analyzeCompetition(
         businessType,
@@ -213,7 +218,7 @@ export async function POST(request: NextRequest) {
       Promise.resolve(
         calculateEmployeeMetrics({
           num_employees: decisions.target_employee_count,
-          salary_per_employee: decisions.avg_hourly_wage * 160,
+          salary_per_employee: decisions.avg_hourly_wage * (decisions.working_hours_per_week || 40) * 4.33, // Monthly salary
           customers_served: prevState.customers || 1000,
           market_median_income: Number(censusData.demographics_detailed.B19013_001E?.value) || 60000,
         })

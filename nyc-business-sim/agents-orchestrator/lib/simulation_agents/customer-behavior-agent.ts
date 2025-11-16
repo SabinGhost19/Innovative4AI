@@ -60,8 +60,11 @@ export async function simulateCustomerBehavior(
   },
   playerDecisions: {
     pricing_strategy: 'premium' | 'competitive' | 'discount';
+    product_price_modifier?: number;  // NEW: Granular price control (0.7 - 1.5)
     marketing_spend: number;
     quality_level: 'basic' | 'standard' | 'premium';
+    inventory_strategy?: 'minimal' | 'balanced' | 'abundant';
+    working_hours_per_week?: number;
   },
   previousMonthCustomers: number, // Last month's active customers
   currentMonth: number,
@@ -95,8 +98,8 @@ export async function simulateCustomerBehavior(
   
   const totalPotentialCustomers = Math.round(population * dynamicPenetration);
   
-  // Price positioning ratio
-  const priceRatio = {
+  // Price positioning ratio - Use product_price_modifier if available, otherwise fallback to strategy
+  const priceRatio = playerDecisions.product_price_modifier || {
     'premium': 1.25,      // 25% above market
     'competitive': 1.0,   // At market
     'discount': 0.85      // 15% below market
@@ -110,9 +113,11 @@ export async function simulateCustomerBehavior(
   }[playerDecisions.quality_level];
   
   // Price satisfaction (inverse of premium)
-  const priceSatisfaction = 100 - (priceRatio - 1) * 100;
+  // If price is lower than market (< 1.0), satisfaction increases
+  // If price is higher than market (> 1.0), satisfaction decreases
+  const priceSatisfaction = 100 - Math.max(0, (priceRatio - 1) * 100);
   
-  // Combined satisfaction
+  // Combined satisfaction (70% quality, 30% price)
   const customerSatisfaction = (qualityScore * 0.7 + priceSatisfaction * 0.3);
   
   // Calculate CHURN RATE using scientific formula
@@ -220,9 +225,12 @@ ${mathSummary}
 - Bachelor's Degree+: ${(censusData.derived_statistics.bachelor_plus_rate * 100).toFixed(1)}%
 
 💰 PRICING & QUALITY:
-- Pricing Strategy: ${playerDecisions.pricing_strategy} (${priceRatio}x market)
+- Pricing Strategy: ${playerDecisions.pricing_strategy}
+- Product Price Modifier: ${priceRatio}x market (${priceRatio < 1 ? 'Discount' : priceRatio > 1.1 ? 'Premium' : 'Competitive'})
 - Quality Level: ${playerDecisions.quality_level}
 - Marketing Spend: $${playerDecisions.marketing_spend.toLocaleString()}
+${playerDecisions.inventory_strategy ? `- Inventory Strategy: ${playerDecisions.inventory_strategy}` : ''}
+${playerDecisions.working_hours_per_week ? `- Operating Hours: ${playerDecisions.working_hours_per_week}h/week` : ''}
 
 🏪 MARKET CONTEXT:
 - Economic Climate: ${marketContext.economic_climate}

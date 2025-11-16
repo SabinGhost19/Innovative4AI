@@ -8,7 +8,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import httpx
 
-from database import init_db, get_db, AreaOverview, DetailedAreaAnalysis
+from database import init_db, get_db, AreaOverview, DetailedAreaAnalysis, SimulationUser
 from census_service import analyze_area
 from detailed_analysis_service import analyze_area_detailed
 from trends_service import analyze_business_trends
@@ -108,6 +108,18 @@ def startup_event():
 # ========================================
 # AUTHENTICATION ENDPOINTS
 # ========================================
+
+@app.post("/api/auth/check-username")
+def check_username(request: LoginRequest, db: Session = Depends(get_db)):
+    """Check if username is available"""
+    try:
+        user = db.query(SimulationUser).filter(SimulationUser.username == request.username).first()
+        if user:
+            return {"available": False, "error": "Username already taken"}
+        return {"available": True}
+    except Exception as e:
+        print(f"Error checking username: {e}")
+        return {"available": False, "error": "Failed to check username availability"}
 
 @app.post("/api/auth/register", response_model=RegisterResponse)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):

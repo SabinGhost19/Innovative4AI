@@ -39,7 +39,8 @@ export async function analyzeSupplierDynamics(
   currentRevenue: number,
   currentMonth: number,
   currentYear: number,
-  monthsInBusiness: number = 1
+  monthsInBusiness: number = 1,
+  inventoryStrategy: 'minimal' | 'balanced' | 'abundant' = 'balanced'
 ): Promise<z.infer<typeof SupplierAnalysisSchema>> {
   
   const monthlyRent = calculateMonthlyRent(businessType, location.county);
@@ -65,8 +66,15 @@ export async function analyzeSupplierDynamics(
   // Calculate final COGS rate with relationship discount
   const finalCOGSRate = calculateTotalCOGS(businessType, currentRevenue, monthsInBusiness);
   
-  // Calculate actual COGS in dollars
-  const totalCOGS = currentRevenue * finalCOGSRate;
+  // Apply inventory strategy multiplier
+  const inventoryMultiplier = {
+    'minimal': 0.90,    // -10% costs (just-in-time, less waste)
+    'balanced': 1.00,   // Standard costs
+    'abundant': 1.15    // +15% costs (higher carrying/waste)
+  }[inventoryStrategy];
+  
+  // Calculate actual COGS in dollars with inventory adjustment
+  const totalCOGS = currentRevenue * finalCOGSRate * inventoryMultiplier;
   
   // Calculate relationship discount for display
   const relationshipDiscount = calculateRelationshipDiscount(monthsInBusiness);
@@ -87,6 +95,7 @@ MATHEMATICAL CALCULATIONS COMPLETED:
 - Base COGS Rate: ${baseCOGSPercent.toFixed(1)}%
 - Volume Discount Applied: ${((baseCOGSPercent - effectiveCOGSPercent)).toFixed(2)}%
 - Effective COGS: ${effectiveCOGSPercent.toFixed(1)}%
+- Inventory Strategy: ${inventoryStrategy} (${inventoryMultiplier}x multiplier)
 - Relationship Discount: ${((1 - relationshipDiscount) * 100).toFixed(1)}% (${monthsInBusiness} months in business)
 - Total COGS: $${totalCOGS.toFixed(2)}
 - Total Supplier Costs: $${totalSupplierCosts.toFixed(2)} (${costPercent.toFixed(1)}% of revenue)

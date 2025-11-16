@@ -28,8 +28,14 @@ const Login = () => {
         setLoading(false);
 
         if (result.success) {
-            // Navigate to dashboard - it will load the session
-            navigate("/dashboard");
+            // Check if user has an active session
+            if (result.session) {
+                // User has session - go to dashboard
+                navigate("/dashboard");
+            } else {
+                // User exists but no session - go to overview to start simulation
+                navigate("/overview");
+            }
         } else {
             setError(result.error || "Login failed");
         }

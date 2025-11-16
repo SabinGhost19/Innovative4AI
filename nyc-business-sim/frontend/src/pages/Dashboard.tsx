@@ -5,6 +5,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import OverviewTab from "@/components/dashboard/OverviewTab";
 import SimulationResults from "@/components/dashboard/SimulationResults";
+import DecisionPanel, { PlayerDecisions } from "@/components/dashboard/DecisionPanel";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { getAuthState, createSession, saveMonthlyState, logout, updateSession } from "@/lib/auth";
@@ -31,6 +32,18 @@ const Dashboard = () => {
     cashBalance: 0,
   });
 
+  // Player decisions state
+  const [playerDecisions, setPlayerDecisions] = useState<PlayerDecisions>({
+    pricing_strategy: 'competitive',
+    product_price_modifier: 1.0,
+    quality_level: 'standard',
+    marketing_spend: 1000,
+    target_employee_count: 3,
+    avg_hourly_wage: 20,
+    inventory_strategy: 'balanced',
+    working_hours_per_week: 40,
+  });
+
   useEffect(() => {
     const authState = getAuthState();
 
@@ -50,19 +63,83 @@ const Dashboard = () => {
       setCurrentYear(session.current_year);
       setCashBalance(session.latest_state?.cash_balance || session.initial_budget);
 
-      // Restore business data from session
-      setBusinessData({
-        name: session.business_name,
-        industry: session.business_type,
-        products: [],
-        budget: session.initial_budget,
-        location: {
-          lat: session.location.lat,
-          lng: session.location.lng,
-          address: session.location.address,
-          neighborhood: session.location.neighborhood,
-        },
-      });
+      // Try to restore areaId from localStorage businessData
+      const storedBusinessData = localStorage.getItem("businessData");
+      let areaId: number | undefined;
+      if (storedBusinessData) {
+        try {
+          const parsed = JSON.parse(storedBusinessData);
+          areaId = parsed.areaId;
+          console.log("📍 Restored areaId from localStorage:", areaId);
+        } catch (e) {
+          console.error("Failed to parse businessData from localStorage");
+        }
+      }
+
+      // If areaId is missing, fetch it from backend using location
+      const fetchAreaId = async () => {
+        if (!areaId && session.location) {
+          console.log("🔄 areaId missing, fetching from backend using location...");
+          try {
+            const response = await fetch("http://localhost:8000/api/launch-business", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: session.location.lat,
+                longitude: session.location.lng,
+                business_name: session.business_name,
+                industry: session.industry,
+              }),
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              if (result.area_id) {
+                areaId = result.area_id;
+                console.log("✅ Fetched areaId from backend:", areaId);
+
+                // Update businessData in localStorage with areaId
+                const updatedBusinessData = {
+                  name: session.business_name,
+                  industry: session.business_type,
+                  products: [],
+                  budget: session.initial_budget,
+                  areaId: areaId,
+                  location: {
+                    lat: session.location.lat,
+                    lng: session.location.lng,
+                    address: session.location.address,
+                    neighborhood: session.location.neighborhood,
+                  },
+                };
+                localStorage.setItem("businessData", JSON.stringify(updatedBusinessData));
+                setBusinessData(updatedBusinessData);
+              }
+            } else {
+              console.error("Failed to fetch area_id from backend");
+            }
+          } catch (error) {
+            console.error("Error fetching area_id:", error);
+          }
+        } else {
+          // areaId exists, just set business data
+          setBusinessData({
+            name: session.business_name,
+            industry: session.business_type,
+            products: [],
+            budget: session.initial_budget,
+            areaId: areaId,
+            location: {
+              lat: session.location.lat,
+              lng: session.location.lng,
+              address: session.location.address,
+              neighborhood: session.location.neighborhood,
+            },
+          });
+        }
+      };
+
+      fetchAreaId();
 
       // Restore previous state if exists
       if (session.latest_state) {
@@ -86,59 +163,11 @@ const Dashboard = () => {
         description: `Continuing ${session.business_name} - Month ${session.current_month}`,
       });
     } else {
-      // New user - check if they have business data from registration
-      const data = localStorage.getItem("businessData");
-      if (!data) {
-        navigate("/register");
-        return;
-      }
-      const business = JSON.parse(data);
-      setBusinessData(business);
-      setCashBalance(business.budget);
-
-      // Create new session
-      if (business.location && authState.user) {
-        createNewSession(authState.user.user_id, business);
-      }
-
-      // Initialize previous month state with starting budget
-      setPreviousMonthState({
-        revenue: 0,
-        profit: 0,
-        customers: 0,
-        cashBalance: business.budget,
-      });
+      // User authenticated but no session - redirect to overview to start simulation
+      navigate("/overview");
+      return;
     }
   }, [navigate, toast]);
-
-  const createNewSession = async (userId: string, business: BusinessData) => {
-    try {
-      const result = await createSession(
-        userId,
-        business.name,
-        business.industry,
-        business.industry,
-        {
-          address: business.location?.address || "",
-          neighborhood: business.location?.neighborhood || "",
-          county: "New York County",
-          lat: business.location?.lat || 0,
-          lng: business.location?.lng || 0,
-        },
-        business.budget
-      );
-
-      if (result.success && result.session) {
-        setSessionId(result.session.session_id);
-        toast({
-          title: "Session Created",
-          description: `Started simulation for ${business.name}`,
-        });
-      }
-    } catch (error) {
-      console.error("Error creating session:", error);
-    }
-  };
 
   const saveCurrentState = async (
     month: number,
@@ -171,11 +200,7 @@ const Dashboard = () => {
           customerData: outputs.customerData,
           financialData: outputs.financialData,
         },
-        {
-          pricing_strategy: "competitive",
-          marketing_spend: 1000,
-          quality_level: "standard",
-        }
+        playerDecisions  // Use actual player decisions
       );
 
       // Update session in localStorage
@@ -329,13 +354,7 @@ const Dashboard = () => {
           survivalData: null,
           currentMonth: currentMonth,
           currentYear: currentYear,
-          playerDecisions: {
-            pricing_strategy: "competitive",
-            marketing_spend: 1000,
-            quality_level: "standard",
-            target_employee_count: 3,
-            avg_hourly_wage: 20
-          },
+          playerDecisions: playerDecisions,  // Use actual player decisions from state
           // NEW: Send sessionId and initialBudget for state fetching
           sessionId: sessionId,
           initialBudget: businessData.budget,
@@ -436,6 +455,16 @@ const Dashboard = () => {
         >
           {isLoadingEvent ? "⏳ Generating..." : "🎲 Quick Event Only"}
         </Button>
+      </div>
+
+      {/* Decision Panel - Player Controls */}
+      <div className="px-8 py-4">
+        <DecisionPanel
+          decisions={playerDecisions}
+          onChange={setPlayerDecisions}
+          currentMonth={currentMonth}
+          cashBalance={cashBalance}
+        />
       </div>
 
       {/* Full Simulation Results */}

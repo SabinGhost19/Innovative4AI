@@ -74,6 +74,30 @@ export async function register(username: string): Promise<{ success: boolean; us
 }
 
 /**
+ * Check if username is available
+ */
+export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/check-username`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+
+    const data = await response.json();
+    
+    if (data.available !== undefined) {
+      return { available: data.available, error: data.error };
+    } else {
+      return { available: false, error: "Invalid response from server" };
+    }
+  } catch (error) {
+    console.error("Check username error:", error);
+    return { available: false, error: "Network error" };
+  }
+}
+
+/**
  * Login existing user
  */
 export async function login(username: string): Promise<{ success: boolean; user?: User; session?: Session | null; error?: string }> {
@@ -224,6 +248,16 @@ export function logout(): void {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem("businessData"); // Clean old format
+  cleanupTempRegistration(); // Clean temp registration data
+}
+
+/**
+ * Clean up temporary registration data
+ */
+export function cleanupTempRegistration(): void {
+  localStorage.removeItem("temp_username");
+  localStorage.removeItem("temp_businessData");
+  localStorage.removeItem("register_step");
 }
 
 /**

@@ -36,7 +36,7 @@ export const CensusDataSchema = z.object({
   longitude: z.number(),
   area_name: z.string(),
   fips_codes: FipsCodesSchema,
-  demographics: z.record(z.union([z.string(), z.number()])),
+  demographics: z.record(z.union([z.string(), z.number(), z.null()])),
 });
 
 export const DetailedCensusDataSchema = z.object({

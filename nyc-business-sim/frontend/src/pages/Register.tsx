@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
-import { register as registerUser } from "@/lib/auth";
 import BusinessSetup from "@/components/onboarding/BusinessSetup";
 import LocationSelector from "@/components/onboarding/LocationSelector";
 import { BusinessData } from "./Onboarding";
+import { checkUsernameAvailability } from "@/lib/auth";
 
 const Register = () => {
     const navigate = useNavigate();
@@ -24,7 +24,24 @@ const Register = () => {
         budget: 50000,
     });
 
-    const handleRegister = async () => {
+    useEffect(() => {
+        // Check if resuming registration
+        const savedStep = localStorage.getItem("register_step");
+        const savedUsername = localStorage.getItem("temp_username");
+        const savedBusiness = localStorage.getItem("temp_businessData");
+
+        if (savedStep && savedUsername) {
+            setUsername(savedUsername);
+            if (savedBusiness) {
+                setBusinessData(JSON.parse(savedBusiness));
+            }
+            setStep(savedStep as "username" | "business" | "location");
+            // Clear the step flag
+            localStorage.removeItem("register_step");
+        }
+    }, []);
+
+    const handleUsernameNext = async () => {
         if (!username.trim()) {
             setError("Please enter a username");
             return;
@@ -33,29 +50,53 @@ const Register = () => {
         setLoading(true);
         setError("");
 
-        const result = await registerUser(username.trim());
+        try {
+            // Check if username is available
+            const result = await checkUsernameAvailability(username.trim());
 
-        setLoading(false);
+            if (!result.available) {
+                setError(result.error || "Username already taken. Please choose another.");
+                setLoading(false);
+                return;
+            }
 
-        if (result.success) {
+            // Save username to temp storage (not in DB yet!)
+            localStorage.setItem("temp_username", username.trim());
+
             // Move to business setup
             setStep("business");
-        } else {
-            setError(result.error || "Registration failed");
+        } catch (err) {
+            setError("Failed to validate username");
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleBusinessNext = () => {
+        // Save business data to temp storage
+        localStorage.setItem("temp_businessData", JSON.stringify(businessData));
         setStep("location");
     };
 
     const updateBusinessData = (data: Partial<BusinessData>) => {
-        setBusinessData({ ...businessData, ...data });
+        setBusinessData(prev => {
+            const updated = { ...prev, ...data };
+            // If we're updating location in the last step, save it immediately
+            if (data.location && step === "location") {
+                console.log("📍 Location updated and saved:", data.location);
+                localStorage.setItem("temp_businessData", JSON.stringify(updated));
+            }
+            return updated;
+        });
     };
 
     const handleLocationComplete = () => {
-        // Navigate to dashboard which will create session
-        navigate("/dashboard");
+        // Data is already saved by updateBusinessData when location is selected
+        console.log("✅ Location step complete, navigating to overview");
+        console.log("📦 Final businessData:", businessData);
+
+        // Navigate to overview page for review
+        navigate("/overview");
     };
 
     if (step === "username") {
@@ -84,13 +125,13 @@ const Register = () => {
                                 placeholder="Enter your username"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleRegister()}
+                                onKeyDown={(e) => e.key === "Enter" && handleUsernameNext()}
                                 disabled={loading}
                             />
                         </div>
 
                         <Button
-                            onClick={handleRegister}
+                            onClick={handleUsernameNext}
                             disabled={loading}
                             className="w-full"
                             size="lg"
@@ -98,7 +139,7 @@ const Register = () => {
                             {loading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating Account...
+                                    Validating...
                                 </>
                             ) : (
                                 "Continue"
