@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Calendar, DollarSign, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Bell, Calendar, DollarSign, ChevronRight, Eye, EyeOff, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
   notifications: number;
   onNextMonth?: () => void;
   isLoadingNextMonth?: boolean;
+  onLogout?: () => void;
 };
 
 const DashboardHeader = ({
@@ -17,7 +18,8 @@ const DashboardHeader = ({
   cashBalance,
   notifications,
   onNextMonth,
-  isLoadingNextMonth = false
+  isLoadingNextMonth = false,
+  onLogout
 }: Props) => {
   const [showBalance, setShowBalance] = useState(false);
 
@@ -79,6 +81,17 @@ const DashboardHeader = ({
               </span>
             )}
           </button>
+
+          {/* Logout Button */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="p-2.5 rounded-xl glass-button hover:border-red-500/20 transition-all duration-300 group"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4 text-white/50 group-hover:text-red-400 transition-colors" />
+            </button>
+          )}
 
           {/* Glassy NEXT MONTH Button */}
           <Button

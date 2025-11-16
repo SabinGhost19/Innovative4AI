@@ -14,6 +14,50 @@ import { simulateCustomerBehavior } from '@/lib/simulation_agents/customer-behav
 import { analyzeFinancialPerformance } from '@/lib/simulation_agents/financial-agent';
 import { calculateMonthlyRent } from '@/core/constants';
 
+// Backend API URL
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:8000';
+
+/**
+ * Fetch previous month state from backend
+ */
+async function fetchPreviousState(
+  sessionId: string | undefined,
+  currentMonth: number,
+  currentYear: number
+): Promise<any> {
+  if (!sessionId) {
+    console.log('⚠️ No session ID provided, using default state');
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${BACKEND_API_URL}/api/simulation/session/${sessionId}/previous-state?month=${currentMonth}&year=${currentYear}`,
+      {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`⚠️ Failed to fetch previous state: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.state) {
+      console.log('✅ Previous state loaded from database');
+      return data.state;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching previous state:', error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
@@ -31,7 +75,9 @@ export async function POST(request: NextRequest) {
       currentMonth, 
       currentYear,
       playerDecisions,
-      previousMonthState
+      previousMonthState,
+      sessionId, // NEW: Session ID to fetch previous state
+      initialBudget, // NEW: For fallback
     } = body;
     
     // Validate required fields
@@ -51,12 +97,33 @@ export async function POST(request: NextRequest) {
       avg_hourly_wage: 20
     };
 
-    const prevState = previousMonthState || {
-      revenue: 0,
-      profit: 0,
-      customers: 0,
-      cashBalance: 100000
-    };
+    // Fetch previous state from backend if we have a sessionId
+    let prevState = previousMonthState;
+    
+    if (!prevState && sessionId) {
+      const fetchedState = await fetchPreviousState(sessionId, currentMonth, currentYear);
+      
+      if (fetchedState) {
+        prevState = {
+          revenue: fetchedState.revenue || 0,
+          profit: fetchedState.profit || 0,
+          customers: fetchedState.customers || 0,
+          cashBalance: fetchedState.cashBalance || (initialBudget || 100000),
+        };
+        console.log(`📊 Loaded previous state: Revenue=$${prevState.revenue}, Customers=${prevState.customers}`);
+      }
+    }
+
+    // Final fallback to defaults
+    if (!prevState) {
+      prevState = {
+        revenue: 0,
+        profit: 0,
+        customers: 0,
+        cashBalance: initialBudget || 100000
+      };
+      console.log('📊 Using default initial state (first month)');
+    }
 
     const phaseTimes: Record<string, number> = {};
 

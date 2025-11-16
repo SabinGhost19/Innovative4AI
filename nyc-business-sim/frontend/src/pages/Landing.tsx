@@ -105,7 +105,7 @@ const Landing = () => {
         <div className="absolute bottom-12">
           <Button
             size="lg"
-            onClick={() => navigate("/onboarding")}
+            onClick={() => navigate("/register")}
             className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 text-lg px-10 py-6 rounded-full transition-all duration-300 hover:scale-105"
             style={{
               boxShadow: '0 0 30px rgba(255, 255, 255, 0.2)',

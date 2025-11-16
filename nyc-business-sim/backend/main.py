@@ -13,6 +13,7 @@ from census_service import analyze_area
 from detailed_analysis_service import analyze_area_detailed
 from trends_service import analyze_business_trends
 import business_survival_service as survival_svc
+from simulation_state_service import SimulationStateService
 
 app = FastAPI(title="NYC Business Simulator Backend")
 
@@ -56,12 +57,157 @@ class GetTrendsRequest(BaseModel):
     business_type: str
     location: str = "US-NY"
 
+# Authentication Models
+class RegisterRequest(BaseModel):
+    username: str
+
+class RegisterResponse(BaseModel):
+    success: bool
+    user_id: Optional[str] = None
+    username: Optional[str] = None
+    error: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username: str
+
+class LoginResponse(BaseModel):
+    success: bool
+    user_id: Optional[str] = None
+    username: Optional[str] = None
+    session: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+# Simulation Session Models
+class CreateSessionRequest(BaseModel):
+    user_id: str
+    business_name: str
+    business_type: str
+    industry: str
+    location: Dict[str, Any]
+    initial_budget: float
+
+class SaveMonthlyStateRequest(BaseModel):
+    session_id: str
+    month: int
+    year: int
+    revenue: float
+    profit: float
+    customers: int
+    cash_balance: float
+    agent_outputs: Dict[str, Any]
+    player_decisions: Dict[str, Any]
+
+
 @app.on_event("startup")
 def startup_event():
     """Inițializează baza de date la pornirea aplicației"""
     print("Inițializare bază de date...")
     init_db()
     print("Baza de date inițializată cu succes!")
+
+# ========================================
+# AUTHENTICATION ENDPOINTS
+# ========================================
+
+@app.post("/api/auth/register", response_model=RegisterResponse)
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    """Register new user with username"""
+    try:
+        result = SimulationStateService.register_user(db, request.username)
+        return RegisterResponse(
+            success=True,
+            user_id=result["user_id"],
+            username=result["username"]
+        )
+    except ValueError as e:
+        return RegisterResponse(success=False, error=str(e))
+    except Exception as e:
+        print(f"Error during registration: {e}")
+        return RegisterResponse(success=False, error="Registration failed")
+
+@app.post("/api/auth/login", response_model=LoginResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    """Login user and return session state"""
+    try:
+        result = SimulationStateService.login_user(db, request.username)
+        return LoginResponse(
+            success=True,
+            user_id=result["user_id"],
+            username=result["username"],
+            session=result["session"]
+        )
+    except ValueError as e:
+        return LoginResponse(success=False, error=str(e))
+    except Exception as e:
+        print(f"Error during login: {e}")
+        return LoginResponse(success=False, error="Login failed")
+
+# ========================================
+# SIMULATION SESSION ENDPOINTS
+# ========================================
+
+@app.post("/api/simulation/create-session")
+def create_simulation_session(request: CreateSessionRequest, db: Session = Depends(get_db)):
+    """Create new simulation session for user"""
+    try:
+        result = SimulationStateService.create_session(
+            db,
+            request.user_id,
+            request.business_name,
+            request.business_type,
+            request.industry,
+            request.location,
+            request.initial_budget
+        )
+        return {"success": True, "session": result}
+    except Exception as e:
+        print(f"Error creating session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/simulation/save-state")
+def save_monthly_state(request: SaveMonthlyStateRequest, db: Session = Depends(get_db)):
+    """Save monthly simulation state"""
+    try:
+        result = SimulationStateService.save_monthly_state(
+            db,
+            request.session_id,
+            request.month,
+            request.year,
+            request.revenue,
+            request.profit,
+            request.customers,
+            request.cash_balance,
+            request.agent_outputs,
+            request.player_decisions
+        )
+        return {"success": True, "state": result}
+    except Exception as e:
+        print(f"Error saving state: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/simulation/session/{session_id}/history")
+def get_session_history(session_id: str, db: Session = Depends(get_db)):
+    """Get all monthly states for a session"""
+    try:
+        history = SimulationStateService.get_session_history(db, session_id)
+        return {"success": True, "history": history}
+    except Exception as e:
+        print(f"Error fetching session history: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/api/simulation/session/{session_id}/previous-state")
+def get_previous_state(session_id: str, month: int, year: int, db: Session = Depends(get_db)):
+    """Get previous month state"""
+    try:
+        state = SimulationStateService.get_previous_state(db, session_id, month, year)
+        if state:
+            return {"success": True, "state": state}
+        else:
+            return {"success": False, "message": "No previous state found"}
+    except Exception as e:
+        print(f"Error fetching previous state: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/")
 def read_root():

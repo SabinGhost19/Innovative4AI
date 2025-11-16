@@ -1,8 +1,10 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, JSON, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, JSON, ForeignKey, DECIMAL, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
+import uuid
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -185,6 +187,94 @@ class BusinessSurvival(Base):
     # Composite index pentru căutări rapide
     __table_args__ = (
         {'comment': 'Business survival rates by industry and county (2017-2022)'},
+    )
+
+
+# ============================================================================
+# SIMULATION USER SYSTEM - Username-based authentication
+# ============================================================================
+
+class SimulationUser(Base):
+    """
+    Simple username-only users for simulation
+    """
+    __tablename__ = "simulation_users"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    session = relationship("SimulationSession", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class SimulationSession(Base):
+    """
+    Active simulation session (one per user)
+    """
+    __tablename__ = "simulation_sessions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('simulation_users.id', ondelete='CASCADE'), unique=True, nullable=False)
+    
+    # Business Details
+    business_name = Column(String(255), nullable=False)
+    business_type = Column(String(100), nullable=False)
+    industry = Column(String(100))
+    location = Column(JSON, nullable=False)  # {address, neighborhood, county, lat, lng}
+    initial_budget = Column(DECIMAL(12, 2), nullable=False)
+    
+    # Current State
+    current_month = Column(Integer, default=1)
+    current_year = Column(Integer, default=2024)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("SimulationUser", back_populates="session")
+    monthly_states = relationship("SimulationMonthlyState", back_populates="session", cascade="all, delete-orphan", order_by="SimulationMonthlyState.month")
+
+
+class SimulationMonthlyState(Base):
+    """
+    Historical state for each simulated month
+    """
+    __tablename__ = "simulation_monthly_states"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(UUID(as_uuid=True), ForeignKey('simulation_sessions.id', ondelete='CASCADE'), nullable=False)
+    month = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    
+    # Financial State
+    revenue = Column(DECIMAL(12, 2), default=0)
+    profit = Column(DECIMAL(12, 2), default=0)
+    customers = Column(Integer, default=0)
+    cash_balance = Column(DECIMAL(12, 2), default=0)
+    
+    # Full Agent Outputs (for replay/analysis)
+    market_context = Column(JSON)
+    events_data = Column(JSON)
+    trends_data = Column(JSON)
+    supplier_data = Column(JSON)
+    competition_data = Column(JSON)
+    employee_data = Column(JSON)
+    customer_data = Column(JSON)
+    financial_data = Column(JSON)
+    
+    # Player Decisions
+    player_decisions = Column(JSON)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    session = relationship("SimulationSession", back_populates="monthly_states")
+    
+    # Unique constraint: one state per month per session
+    __table_args__ = (
+        UniqueConstraint('session_id', 'month', 'year', name='uix_session_month_year'),
     )
 
 

@@ -7,6 +7,7 @@ import OverviewTab from "@/components/dashboard/OverviewTab";
 import SimulationResults from "@/components/dashboard/SimulationResults";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { getAuthState, createSession, saveMonthlyState, logout, updateSession } from "@/lib/auth";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ const Dashboard = () => {
   const [lastEvent, setLastEvent] = useState<any>(null);
   const [lastTrends, setLastTrends] = useState<any>(null);
   const [simulationOutputs, setSimulationOutputs] = useState<any>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Track previous month state for accumulation
   const [previousMonthState, setPreviousMonthState] = useState({
@@ -29,23 +32,176 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    const data = localStorage.getItem("businessData");
-    if (!data) {
-      navigate("/onboarding");
+    const authState = getAuthState();
+
+    // Check if user is authenticated
+    if (!authState.user) {
+      navigate("/login");
       return;
     }
-    const business = JSON.parse(data);
-    setBusinessData(business);
-    setCashBalance(business.budget);
 
-    // Initialize previous month state with starting budget
-    setPreviousMonthState({
-      revenue: 0,
-      profit: 0,
-      customers: 0,
-      cashBalance: business.budget,
-    });
-  }, [navigate]);
+    setUserId(authState.user.user_id);
+
+    // If user has active session, restore it
+    if (authState.session) {
+      const session = authState.session;
+      setSessionId(session.session_id);
+      setCurrentMonth(session.current_month);
+      setCurrentYear(session.current_year);
+      setCashBalance(session.latest_state?.cash_balance || session.initial_budget);
+
+      // Restore business data from session
+      setBusinessData({
+        name: session.business_name,
+        industry: session.business_type,
+        products: [],
+        budget: session.initial_budget,
+        location: {
+          lat: session.location.lat,
+          lng: session.location.lng,
+          address: session.location.address,
+          neighborhood: session.location.neighborhood,
+        },
+      });
+
+      // Restore previous state if exists
+      if (session.latest_state) {
+        setPreviousMonthState({
+          revenue: session.latest_state.revenue,
+          profit: session.latest_state.profit,
+          customers: session.latest_state.customers,
+          cashBalance: session.latest_state.cash_balance,
+        });
+      } else {
+        setPreviousMonthState({
+          revenue: 0,
+          profit: 0,
+          customers: 0,
+          cashBalance: session.initial_budget,
+        });
+      }
+
+      toast({
+        title: "Welcome back!",
+        description: `Continuing ${session.business_name} - Month ${session.current_month}`,
+      });
+    } else {
+      // New user - check if they have business data from registration
+      const data = localStorage.getItem("businessData");
+      if (!data) {
+        navigate("/register");
+        return;
+      }
+      const business = JSON.parse(data);
+      setBusinessData(business);
+      setCashBalance(business.budget);
+
+      // Create new session
+      if (business.location && authState.user) {
+        createNewSession(authState.user.user_id, business);
+      }
+
+      // Initialize previous month state with starting budget
+      setPreviousMonthState({
+        revenue: 0,
+        profit: 0,
+        customers: 0,
+        cashBalance: business.budget,
+      });
+    }
+  }, [navigate, toast]);
+
+  const createNewSession = async (userId: string, business: BusinessData) => {
+    try {
+      const result = await createSession(
+        userId,
+        business.name,
+        business.industry,
+        business.industry,
+        {
+          address: business.location?.address || "",
+          neighborhood: business.location?.neighborhood || "",
+          county: "New York County",
+          lat: business.location?.lat || 0,
+          lng: business.location?.lng || 0,
+        },
+        business.budget
+      );
+
+      if (result.success && result.session) {
+        setSessionId(result.session.session_id);
+        toast({
+          title: "Session Created",
+          description: `Started simulation for ${business.name}`,
+        });
+      }
+    } catch (error) {
+      console.error("Error creating session:", error);
+    }
+  };
+
+  const saveCurrentState = async (
+    month: number,
+    year: number,
+    outputs: any
+  ) => {
+    if (!sessionId) return;
+
+    try {
+      const revenue = outputs.financialData?.profit_loss?.revenue || 0;
+      const profit = outputs.financialData?.profit_loss?.net_profit || 0;
+      const customers = outputs.customerData?.total_active_customers || 0;
+      const cashBal = outputs.financialData?.cash_flow?.closing_balance || previousMonthState.cashBalance;
+
+      await saveMonthlyState(
+        sessionId,
+        month,
+        year,
+        revenue,
+        profit,
+        customers,
+        cashBal,
+        {
+          marketContext: outputs.marketContext,
+          eventsData: outputs.eventsData,
+          trendsData: outputs.trendsData,
+          supplierData: outputs.supplierData,
+          competitionData: outputs.competitionData,
+          employeeData: outputs.employeeData,
+          customerData: outputs.customerData,
+          financialData: outputs.financialData,
+        },
+        {
+          pricing_strategy: "competitive",
+          marketing_spend: 1000,
+          quality_level: "standard",
+        }
+      );
+
+      // Update session in localStorage
+      updateSession({
+        current_month: month,
+        current_year: year,
+        latest_state: {
+          month,
+          year,
+          revenue,
+          profit,
+          customers,
+          cash_balance: cashBal,
+        },
+      });
+
+      console.log(`✅ State saved for Month ${month}, Year ${year}`);
+    } catch (error) {
+      console.error("Error saving state:", error);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const handleNextMonth = async () => {
     if (!businessData?.areaId) {
@@ -180,7 +336,11 @@ const Dashboard = () => {
             target_employee_count: 3,
             avg_hourly_wage: 20
           },
-          previousMonthState: previousMonthState  // Use tracked state!
+          // NEW: Send sessionId and initialBudget for state fetching
+          sessionId: sessionId,
+          initialBudget: businessData.budget,
+          // Still send previousMonthState as fallback
+          previousMonthState: previousMonthState
         }),
       });
 
@@ -213,6 +373,11 @@ const Dashboard = () => {
         if (data.outputs.financialData?.cash_flow?.closing_balance) {
           setCashBalance(data.outputs.financialData.cash_flow.closing_balance);
         }
+
+        // Save state to database
+        const newMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+        const newYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+        await saveCurrentState(newMonth, newYear, data.outputs);
 
         toast({
           title: `✅ Simulation Complete!`,
@@ -250,6 +415,7 @@ const Dashboard = () => {
         notifications={5}
         onNextMonth={handleNextMonth}
         isLoadingNextMonth={isLoadingEvent}
+        onLogout={handleLogout}
       />
 
       {/* Action Buttons */}
