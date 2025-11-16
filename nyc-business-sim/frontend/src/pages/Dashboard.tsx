@@ -426,7 +426,16 @@ const Dashboard = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout
+      strategyPanel={
+        <DecisionPanel
+          decisions={playerDecisions}
+          onChange={setPlayerDecisions}
+          currentMonth={currentMonth}
+          cashBalance={cashBalance}
+        />
+      }
+    >
       <DashboardHeader
         businessName={businessData.name}
         currentMonth={currentMonth}
@@ -455,16 +464,6 @@ const Dashboard = () => {
         >
           {isLoadingEvent ? "⏳ Generating..." : "🎲 Quick Event Only"}
         </Button>
-      </div>
-
-      {/* Decision Panel - Player Controls */}
-      <div className="px-8 py-4">
-        <DecisionPanel
-          decisions={playerDecisions}
-          onChange={setPlayerDecisions}
-          currentMonth={currentMonth}
-          cashBalance={cashBalance}
-        />
       </div>
 
       {/* Full Simulation Results */}

@@ -4,13 +4,16 @@ import {
   FileText,
   Users,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  X
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 
 type Props = {
   children: ReactNode;
+  strategyPanel?: ReactNode;
 };
 
 const navigationItems = [
@@ -19,8 +22,9 @@ const navigationItems = [
   { name: "Competitors", path: "/dashboard/competitors", icon: Users },
 ];
 
-const DashboardLayout = ({ children }: Props) => {
+const DashboardLayout = ({ children, strategyPanel }: Props) => {
   const [collapsed, setCollapsed] = useState(true);
+  const [strategyOpen, setStrategyOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-black flex relative">
@@ -108,6 +112,58 @@ const DashboardLayout = ({ children }: Props) => {
       )}>
         {children}
       </main>
+
+      {/* Floating Strategy Button */}
+      {strategyPanel && (
+        <button
+          onClick={() => setStrategyOpen(true)}
+          className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent backdrop-blur-xl border-2 border-primary/50 shadow-lg shadow-primary/25 hover:shadow-primary/50 hover:scale-110 transition-all duration-300 z-40 flex items-center justify-center group"
+        >
+          <Settings className="h-6 w-6 text-black group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+      )}
+
+      {/* Strategy Drawer Overlay */}
+      {strategyOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300"
+          onClick={() => setStrategyOpen(false)}
+        />
+      )}
+
+      {/* Strategy Drawer */}
+      <div
+        className={cn(
+          "fixed right-0 top-0 h-screen w-96 backdrop-blur-xl bg-black/40 border-l border-white/10 z-50 transition-transform duration-500 ease-out overflow-y-auto",
+          strategyOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        {/* Drawer Header */}
+        <div className="sticky top-0 z-10 p-4 border-b border-white/10 bg-black/60 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+                <Settings className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white glow-text">Strategy Options</h2>
+                <p className="text-xs text-white/50">Configure your business</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setStrategyOpen(false)}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors"
+            >
+              <X className="h-4 w-4 text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Drawer Content */}
+        <div className="p-4">
+          {strategyPanel}
+        </div>
+      </div>
     </div>
   );
 };
