@@ -214,13 +214,30 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
   };
 
   return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">Choose Your Location</h2>
-        <p className="text-muted-foreground">Select a strategic spot in New York City</p>
+    <div className="relative min-h-screen w-full overflow-hidden">
+      {/* Video Background */}
+      <div className="fixed inset-0 z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover blur-sm scale-105"
+          style={{ filter: 'blur(8px) brightness(0.5)' }}
+        >
+          <source src="/bg2.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
-      <div className="glass-card p-8 rounded-2xl space-y-8">
+      {/* Content */}
+      <div className="relative z-10 space-y-8 p-6">
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-bold text-white">Choose Your Location</h2>
+        <p className="text-white/70">Select a strategic spot in New York City</p>
+      </div>
+
+      <div className="backdrop-blur-xl bg-black/30 border border-white/10 p-8 rounded-2xl space-y-8 shadow-2xl">{/* Interactive Google Map */}
         {/* Interactive Google Map */}
         <div className="space-y-4">
           <InteractiveMap
@@ -231,15 +248,15 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
           {selectedLocation && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Left: Location Info */}
-              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-primary mt-0.5" />
                   <div className="flex-1">
-                    <p className="font-semibold text-sm">Selected Location</p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="font-semibold text-sm text-white">Selected Location</p>
+                    <p className="text-sm text-white/70 mt-1">
                       {selectedLocation.address || `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-white/50 mt-1">
                       Coordinates: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
                     </p>
                   </div>
@@ -247,20 +264,20 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
               </div>
 
               {/* Right: Market Overview */}
-              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="p-4 rounded-lg bg-accent/10 border border-accent/30">
                 {isLoadingPrices ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="flex flex-col items-center gap-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
-                      <p className="text-xs text-muted-foreground">Loading market data...</p>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+                      <p className="text-xs text-white/60">Loading market data...</p>
                     </div>
                   </div>
                 ) : priceData ? (
                   <div className="space-y-2">
-                    <p className="font-semibold text-sm text-green-600 mb-3">Market Overview</p>
+                    <p className="font-semibold text-sm text-accent mb-3">Market Overview</p>
                     {priceData.population && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Populație:</span>
+                        <span className="text-xs text-white/60">Populație:</span>
                         <span className="text-sm font-semibold">{Number(priceData.population).toLocaleString()}</span>
                       </div>
                     )}
@@ -318,7 +335,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
             <Button
               onClick={handleGenerateRecommendations}
               size="lg"
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+              className="w-full bg-gradient-to-r from-primary/80 to-accent/80 hover:from-primary hover:to-accent text-black font-semibold shadow-lg border border-primary/30"
             >
               <Sparkles className="mr-2 h-5 w-5" />
               Generate TOP 3 Businesses with AI
@@ -341,19 +358,21 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
             onClick={onBack}
             variant="outline"
             size="lg"
-            className="flex-1 glass-button"
+            className="flex-1 border-white/20 hover:border-white/40 text-white hover:bg-white/5 backdrop-blur-md"
           >
             Back
           </Button>
           <Button
             onClick={handleNext}
             size="lg"
-            className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80"
+            disabled={!selectedLocation}
+            className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-black font-semibold shadow-lg"
           >
             Continue to Review
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 };
