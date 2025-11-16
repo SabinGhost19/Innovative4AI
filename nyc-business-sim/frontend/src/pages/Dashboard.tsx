@@ -70,6 +70,10 @@ const Dashboard = () => {
         `Successfully reverted to ${location.state.revertedTo}. ${location.state.deletedMonths} future months deleted.`
       );
 
+      // Clear simulation outputs from state and localStorage
+      setSimulationOutputs(null);
+      localStorage.removeItem("current_simulation_outputs");
+
       // Show toast notification
       toast({
         title: "Time Travel Successful",

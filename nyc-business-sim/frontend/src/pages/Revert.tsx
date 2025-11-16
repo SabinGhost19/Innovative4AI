@@ -166,8 +166,9 @@ const Revert = () => {
                 };
                 localStorage.setItem("nyc_sim_session", JSON.stringify(updatedSession));
 
-                // Clear any cached dashboard data
+                // Clear any cached dashboard data and simulation outputs
                 localStorage.removeItem("dashboard_cache");
+                localStorage.removeItem("current_simulation_outputs");
 
                 // Navigate back to dashboard with success message
                 navigate("/dashboard", {
