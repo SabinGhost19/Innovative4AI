@@ -259,6 +259,11 @@ export async function POST(request: NextRequest) {
       {
         estimated_monthly_costs: supplierData.estimated_monthly_costs,
       },
+      {
+        total_employees: employeeData.total_employees,
+        productivity_score: employeeData.productivity_score,
+        morale: employeeData.morale,
+      },
       decisions,
       prevState.customers || 0,
       currentMonth,
@@ -274,14 +279,32 @@ export async function POST(request: NextRequest) {
     console.log('📊 PHASE 5: Financial Analysis...');
     const phase5Start = Date.now();
     
-    // Calculate revenue
+    // Calculate revenue based on business type
     const avgSpend = customerData.customer_segments.reduce((sum: number, seg: any) => {
       return sum + (seg.avg_spend * seg.size);
     }, 0) / (customerData.total_active_customers || 1);
     
-    // Assume average 4 visits per month
-    const avgVisitFrequency = 4;
+    // Get correct visit frequency based on business type
+    const businessTypeLower = businessType.toLowerCase();
+    let avgVisitFrequency = 2; // Default
+    
+    if (businessTypeLower.includes('coffee') || businessTypeLower.includes('cafe')) {
+      avgVisitFrequency = 5; // Coffee shops: almost daily visits
+    } else if (businessTypeLower.includes('gym') || businessTypeLower.includes('fitness')) {
+      avgVisitFrequency = 12; // Gyms: frequent visits
+    } else if (businessTypeLower.includes('restaurant')) {
+      avgVisitFrequency = 2; // Restaurants: weekly
+    } else if (businessTypeLower.includes('boutique')) {
+      avgVisitFrequency = 0.5; // Boutiques: occasional
+    } else if (businessTypeLower.includes('salon') || businessTypeLower.includes('barber')) {
+      avgVisitFrequency = 0.7; // Salons: monthly
+    } else if (businessTypeLower.includes('retail') || businessTypeLower.includes('shop')) {
+      avgVisitFrequency = 0.8; // Retail: semi-regular
+    }
+    
     const totalRevenue = customerData.total_active_customers * avgSpend * avgVisitFrequency;
+    
+    console.log(`💰 Revenue calculation: ${customerData.total_active_customers} customers × $${avgSpend.toFixed(2)} avg × ${avgVisitFrequency} visits = $${totalRevenue.toFixed(2)}`);
     
     const financialData = analyzeFinancialPerformance({
       totalRevenue,

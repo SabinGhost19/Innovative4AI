@@ -58,6 +58,11 @@ export async function simulateCustomerBehavior(
   supplierData: {
     estimated_monthly_costs: { total: number };
   },
+  employeeData: {
+    total_employees: number;
+    productivity_score: number;
+    morale: number;
+  },
   playerDecisions: {
     pricing_strategy: 'premium' | 'competitive' | 'discount';
     product_price_modifier?: number;  // NEW: Granular price control (0.7 - 1.5)
@@ -117,8 +122,124 @@ export async function simulateCustomerBehavior(
   // If price is higher than market (> 1.0), satisfaction decreases
   const priceSatisfaction = 100 - Math.max(0, (priceRatio - 1) * 100);
   
-  // Combined satisfaction (70% quality, 30% price)
-  const customerSatisfaction = (qualityScore * 0.7 + priceSatisfaction * 0.3);
+  // Calculate transaction values (needed for multiple calculations)
+  const avgTransactionValue = getAvgTransactionValue(businessType);
+  const visitFrequency = getVisitFrequency(businessType);
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SERVICE CAPACITY PENALTY (CRITICAL FOR SCALING!)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  // Calculate customers per employee
+  const customersPerEmployee = previousMonthCustomers / Math.max(1, employeeData.total_employees);
+  
+  // Industry-specific capacity thresholds
+  const optimalCustomersPerEmployee: Record<string, number> = {
+    'coffee': 80,      // Coffee shops can handle ~80 customers/employee/month
+    'cafe': 80,
+    'restaurant': 60,  // Restaurants: ~60 customers/employee
+    'gym': 100,        // Gyms: ~100 members/employee
+    'fitness': 100,
+    'salon': 50,       // Salons: ~50 clients/employee
+    'barber': 50,
+    'retail': 70,      // Retail: ~70 customers/employee
+    'shop': 70,
+    'boutique': 40,    // Boutiques: ~40 customers/employee
+  };
+  
+  // Find matching threshold
+  const businessTypeLower = businessType.toLowerCase();
+  let optimalCapacity = 60; // Default
+  for (const [key, value] of Object.entries(optimalCustomersPerEmployee)) {
+    if (businessTypeLower.includes(key)) {
+      optimalCapacity = value;
+      break;
+    }
+  }
+  
+  // Calculate MAXIMUM PHYSICAL CAPACITY (HARD CAP!)
+  const maxPhysicalCapacity = employeeData.total_employees * optimalCapacity * 1.5; // 150% is absolute max
+  
+  // Calculate capacity ratio
+  const capacityRatio = customersPerEmployee / optimalCapacity;
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // AFFORDABILITY CHECK (Price vs Income)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  const actualPrice = avgTransactionValue * priceRatio;
+  const monthlySpendPerCustomer = actualPrice * visitFrequency;
+  
+  // Calculate affordability ratio (what % of monthly income goes to your business)
+  const monthlyIncome = medianIncome / 12;
+  const affordabilityRatio = monthlySpendPerCustomer / monthlyIncome;
+  
+  // AFFORDABILITY THRESHOLDS:
+  // < 1%: Very affordable (coffee, fast food)
+  // 1-3%: Affordable (restaurants, retail)
+  // 3-5%: Expensive (premium services)
+  // > 5%: Luxury (very limited market)
+  
+  let affordabilityPenalty = 0;
+  let affordabilityMultiplier = 1.0;
+  
+  if (affordabilityRatio > 0.05) {
+    // LUXURY TIER: >5% of income
+    affordabilityPenalty = -40; // Severe satisfaction penalty
+    affordabilityMultiplier = 0.10; // Only 10% of market can afford
+  } else if (affordabilityRatio > 0.03) {
+    // PREMIUM TIER: 3-5% of income
+    affordabilityPenalty = -20;
+    affordabilityMultiplier = 0.30; // Only 30% can afford
+  } else if (affordabilityRatio > 0.02) {
+    // MODERATE: 2-3% of income
+    affordabilityPenalty = -10;
+    affordabilityMultiplier = 0.60; // 60% can afford
+  } else if (affordabilityRatio > 0.01) {
+    // AFFORDABLE: 1-2% of income
+    affordabilityPenalty = 0;
+    affordabilityMultiplier = 0.85; // 85% can afford
+  } else {
+    // VERY AFFORDABLE: <1% of income
+    affordabilityPenalty = 0;
+    affordabilityMultiplier = 1.0; // Everyone can afford
+  }
+  
+  // ADDITIONAL CHECK: High price + Low income area = DISASTER
+  if (priceRatio > 1.2 && medianIncome < 50000) {
+    // Premium pricing in poor area
+    affordabilityPenalty -= 30; // Extra penalty
+    affordabilityMultiplier *= 0.5; // Halve the market
+  }
+  
+  // Calculate capacity penalty
+  let capacityPenalty = 0;
+  let capacityStatus = 'optimal';
+  
+  if (capacityRatio > 1.5) {
+    // SEVERE OVERCROWDING (>150% capacity)
+    capacityPenalty = -30; // -30 satisfaction points
+    capacityStatus = 'severely_understaffed';
+  } else if (capacityRatio > 1.2) {
+    // MODERATE OVERCROWDING (120-150% capacity)
+    capacityPenalty = -20; // -20 satisfaction points
+    capacityStatus = 'understaffed';
+  } else if (capacityRatio > 1.0) {
+    // SLIGHT OVERCROWDING (100-120% capacity)
+    capacityPenalty = -10; // -10 satisfaction points
+    capacityStatus = 'near_capacity';
+  } else if (capacityRatio < 0.5) {
+    // OVERSTAFFED (too many employees for too few customers)
+    capacityPenalty = -5; // Slight penalty (inefficiency perceived by customers)
+    capacityStatus = 'overstaffed';
+  }
+  
+  // Employee morale also affects service quality
+  const moraleBonus = (employeeData.morale - 50) / 10; // -5 to +5 points
+  
+  // Combined satisfaction (70% quality, 30% price, + capacity penalty + morale)
+  const baseSatisfaction = (qualityScore * 0.7 + priceSatisfaction * 0.3);
+  const customerSatisfaction = Math.max(0, Math.min(100, baseSatisfaction + capacityPenalty + moraleBonus));
   
   // Calculate CHURN RATE using scientific formula
   const economicClimate = mapEconomicClimate(marketContext.economic_climate);
@@ -136,32 +257,59 @@ export async function simulateCustomerBehavior(
   const returningCustomers = Math.round(previousMonthCustomers * retentionRate);
   const churnedCustomers = previousMonthCustomers - returningCustomers;
   
-  // Calculate NEW CUSTOMERS using Bass Diffusion Model
-  // Adjust innovation coefficient based on marketing aggression
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // NEW CUSTOMER ACQUISITION (WITH STRICT LIMITS!)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  // Step 1: Calculate addressable market with affordability filter
+  const affordableMarket = Math.round(totalPotentialCustomers * affordabilityMultiplier);
+  
+  // Step 2: Calculate NEW CUSTOMERS using Bass Diffusion Model
   const marketingIntensity = playerDecisions.marketing_spend / 1000; // Normalize
   const innovationCoefficient = 0.03 + (marketingIntensity * 0.02); // Marketing boosts innovation
   
-  const newCustomersAcquired = calculateNewCustomersBassDiffusion(
-    totalPotentialCustomers,
+  let newCustomersAcquired = calculateNewCustomersBassDiffusion(
+    affordableMarket, // Use AFFORDABLE market, not total
     previousMonthCustomers,
     playerDecisions.marketing_spend,
     innovationCoefficient,
     0.38 // Standard imitation coefficient
   );
   
-  // Apply event impact
+  // Step 3: Apply event impact
   const eventMultiplier = eventsData.relevanta_pentru_business 
     ? (1 + eventsData.impact_clienti_lunar / 100)
     : 1.0;
   
-  const adjustedNewCustomers = Math.round(newCustomersAcquired * eventMultiplier);
+  newCustomersAcquired = Math.round(newCustomersAcquired * eventMultiplier);
+  
+  // Step 4: CAPACITY CHECK - Can you physically serve more customers?
+  const projectedTotal = returningCustomers + newCustomersAcquired;
+  
+  if (projectedTotal > maxPhysicalCapacity) {
+    // HARD CAP: Cannot serve more customers than physical capacity
+    const availableCapacity = maxPhysicalCapacity - returningCustomers;
+    newCustomersAcquired = Math.max(0, availableCapacity);
+    
+    console.log(`⚠️ CAPACITY LIMIT REACHED! Capping new customers at ${newCustomersAcquired} (max capacity: ${maxPhysicalCapacity})`);
+  }
+  
+  // Step 5: QUALITY-BASED REJECTION
+  // If you're already overcrowded, new customers will be turned away by bad service
+  if (capacityRatio > 1.3) {
+    // Severe overcrowding - customers won't even try to come
+    const rejectionRate = Math.min(0.8, (capacityRatio - 1.3) * 2); // Up to 80% rejection
+    newCustomersAcquired = Math.round(newCustomersAcquired * (1 - rejectionRate));
+    
+    console.log(`⚠️ SERVICE QUALITY TOO LOW! ${(rejectionRate * 100).toFixed(0)}% of potential customers avoided due to overcrowding`);
+  }
+  
+  const adjustedNewCustomers = newCustomersAcquired;
   
   // TOTAL ACTIVE CUSTOMERS
   const totalActiveCustomers = returningCustomers + adjustedNewCustomers;
   
   // Calculate avg revenue per customer (for CLV)
-  const avgTransactionValue = getAvgTransactionValue(businessType);
-  const visitFrequency = getVisitFrequency(businessType);
   const avgMonthlyRevenuePerCustomer = avgTransactionValue * visitFrequency;
   
   // Calculate CUSTOMER LIFETIME VALUE
@@ -185,18 +333,50 @@ export async function simulateCustomerBehavior(
   const mathSummary = `
 MATHEMATICAL CALCULATIONS COMPLETED:
 - Market Penetration: ${(dynamicPenetration * 100).toFixed(1)}% (adjusted for income, density, season)
-- Total Addressable Market: ${totalPotentialCustomers.toLocaleString()} potential customers
-- Churn Rate: ${(churnRate * 100).toFixed(1)}% (based on competition, pricing, satisfaction)
+- Total Potential Market: ${totalPotentialCustomers.toLocaleString()} customers
+- Affordable Market (After Price Filter): ${Math.round(totalPotentialCustomers * affordabilityMultiplier).toLocaleString()} customers (${(affordabilityMultiplier * 100).toFixed(0)}% can afford)
+
+SERVICE CAPACITY ANALYSIS:
+- Total Employees: ${employeeData.total_employees}
+- Optimal Customers Per Employee: ${optimalCapacity}
+- Actual Customers Per Employee: ${customersPerEmployee.toFixed(1)}
+- Capacity Ratio: ${(capacityRatio * 100).toFixed(0)}% ${capacityRatio > 1.5 ? '🔴 SEVERELY OVERCROWDED' : capacityRatio > 1.2 ? '🟡 OVERCROWDED' : '🟢 HEALTHY'}
+- Max Physical Capacity: ${maxPhysicalCapacity} customers (150% of optimal)
+- Current Total: ${totalActiveCustomers} customers ${totalActiveCustomers > maxPhysicalCapacity ? '⚠️ OVER CAPACITY!' : '✓'}
+
+AFFORDABILITY ANALYSIS:
+- Price Per Visit: $${avgTransactionValue.toFixed(2)} (${priceRatio > 1 ? `+${((priceRatio - 1) * 100).toFixed(0)}%` : `-${((1 - priceRatio) * 100).toFixed(0)}%`} vs base)
+- Monthly Spend Per Customer: $${(avgTransactionValue * visitFrequency).toFixed(2)}
+- Area Median Income: $${medianIncome.toLocaleString()}/year ($${(medianIncome / 12).toFixed(0)}/month)
+- Affordability Ratio: ${((avgTransactionValue * visitFrequency) / (medianIncome / 12) * 100).toFixed(2)}% of monthly income
+- Affordability Tier: ${affordabilityMultiplier >= 1.0 ? 'Very Affordable' : affordabilityMultiplier >= 0.85 ? 'Affordable' : affordabilityMultiplier >= 0.60 ? 'Moderate' : affordabilityMultiplier >= 0.30 ? 'Premium' : 'Luxury'}
+- Market Size Multiplier: ${(affordabilityMultiplier * 100).toFixed(0)}%
+${priceRatio > 1.2 && medianIncome < 50000 ? `⚠️ WARNING: Premium pricing in low-income area - extra ${-30} satisfaction penalty applied!` : ''}
+- Capacity Ratio: ${capacityRatio.toFixed(2)}x (1.0 = optimal, >1.2 = overcrowded)
+- Capacity Status: ${capacityStatus.toUpperCase()}
+- Capacity Penalty: ${capacityPenalty} satisfaction points
+- Employee Morale Bonus: ${moraleBonus.toFixed(1)} satisfaction points
+
+CUSTOMER ACQUISITION & RETENTION:
+- Churn Rate: ${(churnRate * 100).toFixed(1)}% (based on competition + pricing + satisfaction + capacity)
 - Retention Rate: ${(retentionRate * 100).toFixed(1)}%
-- Customer Satisfaction: ${customerSatisfaction.toFixed(0)}/100
+- Customer Satisfaction: ${customerSatisfaction.toFixed(0)}/100 (base: ${baseSatisfaction.toFixed(0)}, capacity: ${capacityPenalty}, morale: ${moraleBonus.toFixed(1)}, affordability: ${affordabilityPenalty})
 - Last Month's Customers: ${previousMonthCustomers.toLocaleString()}
-- Churned This Month: ${churnedCustomers}
+- Churned This Month: ${churnedCustomers} (-${((churnedCustomers / Math.max(previousMonthCustomers, 1)) * 100).toFixed(1)}%)
 - Returning Customers: ${returningCustomers}
-- New Customers (Bass Model): ${adjustedNewCustomers}
-- Total Active Customers: ${totalActiveCustomers}
-- Avg Monthly Revenue/Customer: $${avgMonthlyRevenuePerCustomer.toFixed(2)}
-- Customer Lifetime Value: $${clv.toFixed(2)}
+- New Customers Acquired: ${adjustedNewCustomers} ${adjustedNewCustomers < newCustomersAcquired ? `(capped from ${newCustomersAcquired} due to capacity limits)` : ''}
+- Total Active Customers: ${totalActiveCustomers} ${totalActiveCustomers > maxPhysicalCapacity ? '⚠️ OVER CAPACITY!' : `(${((totalActiveCustomers / maxPhysicalCapacity) * 100).toFixed(0)}% of max capacity)`}
+
+FINANCIAL METRICS:
+- Avg Monthly Revenue/Customer: $${avgMonthlyRevenuePerCustomer.toFixed(2)} (${visitFrequency} visits × $${avgTransactionValue.toFixed(2)})
+- Customer Acquisition Cost: $${cac.toFixed(2)}
+- Customer Lifetime Value: $${clv.toFixed(2)} (${clv > cac * 3 ? '✓ Healthy' : clv > cac ? '⚠️ Marginal' : '🔴 Unprofitable'})
 - Avg Customer Lifespan: ${avgLifespan.toFixed(1)} months
+
+${capacityRatio > 1.5 ? `🔴 CRITICAL: SEVERELY UNDERSTAFFED! Need ${Math.ceil(totalActiveCustomers / optimalCapacity) - employeeData.total_employees} more employees URGENTLY.` : ''}
+${capacityRatio > 1.2 && capacityRatio <= 1.5 ? `⚠️  WARNING: UNDERSTAFFED! Consider hiring ${Math.ceil(totalActiveCustomers / optimalCapacity) - employeeData.total_employees} more employees.` : ''}
+${capacityRatio < 0.5 ? `💡 INFO: OVERSTAFFED. Could reduce ${Math.floor(employeeData.total_employees - totalActiveCustomers / optimalCapacity)} employees to improve efficiency.` : ''}
+${totalActiveCustomers > maxPhysicalCapacity ? `🚨 OVER CAPACITY: You have ${totalActiveCustomers - maxPhysicalCapacity} more customers than you can physically serve!` : ''}
 `;
   
   const systemPrompt = `You are a customer behavior simulation engine for NYC businesses.
@@ -295,11 +475,11 @@ function mapEconomicClimate(climate: string): 'booming' | 'stable' | 'declining'
 function getAvgTransactionValue(businessType: string): number {
   const type = businessType.toLowerCase();
   
-  if (type.includes('coffee') || type.includes('cafe')) return 8;
+  if (type.includes('coffee') || type.includes('cafe')) return 1.8;
   if (type.includes('restaurant')) return 45;
-  if (type.includes('boutique')) return 85;
+  if (type.includes('boutique')) return 40;
   if (type.includes('gym') || type.includes('fitness')) return 120;
-  if (type.includes('salon') || type.includes('barber')) return 65;
+  if (type.includes('salon') || type.includes('barber')) return 50;
   if (type.includes('retail') || type.includes('shop')) return 35;
   
   return 30;
