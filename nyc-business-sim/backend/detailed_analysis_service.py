@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- Variabile ACS (Profil REZIDENȚIAL) ---
 ACS_VARIABLES = {
     "NAME": "Numele Zonei",
     "B01003_001E": "Populație Totală (Rezidenți)",
