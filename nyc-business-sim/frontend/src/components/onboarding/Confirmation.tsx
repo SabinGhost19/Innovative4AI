@@ -56,6 +56,12 @@ const Confirmation = ({ businessData, onComplete, onBack }: Props) => {
       // Save the analysis data to localStorage for the debug page
       localStorage.setItem('areaAnalysisData', JSON.stringify(result));
 
+      // Save area_id to businessData for simulation usage
+      if (result.area_id) {
+        const updatedBusinessData = { ...businessData, areaId: result.area_id };
+        localStorage.setItem('businessData', JSON.stringify(updatedBusinessData));
+      }
+
       // Navigate to the area analysis debug page
       navigate('/area-analysis');
     } catch (err) {

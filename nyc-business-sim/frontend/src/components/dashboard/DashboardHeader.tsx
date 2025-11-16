@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Calendar, DollarSign, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Bell, Calendar, DollarSign, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -7,9 +7,18 @@ type Props = {
   currentMonth: number;
   cashBalance: number;
   notifications: number;
+  onNextMonth?: () => void;
+  isLoadingNextMonth?: boolean;
 };
 
-const DashboardHeader = ({ businessName, currentMonth, cashBalance, notifications }: Props) => {
+const DashboardHeader = ({
+  businessName,
+  currentMonth,
+  cashBalance,
+  notifications,
+  onNextMonth,
+  isLoadingNextMonth = false
+}: Props) => {
   const [showBalance, setShowBalance] = useState(false);
 
   return (
@@ -73,6 +82,8 @@ const DashboardHeader = ({ businessName, currentMonth, cashBalance, notification
 
           {/* Glassy NEXT MONTH Button */}
           <Button
+            onClick={onNextMonth}
+            disabled={isLoadingNextMonth}
             className="px-6 py-2.5 rounded-xl font-light text-sm tracking-wide transition-all duration-300 group border-0"
             style={{
               background: 'linear-gradient(135deg, rgba(13, 115, 119, 0.3) 0%, rgba(20, 255, 236, 0.15) 100%)',
@@ -80,17 +91,28 @@ const DashboardHeader = ({ businessName, currentMonth, cashBalance, notification
               boxShadow: '0 0 20px rgba(13, 115, 119, 0.2)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 30px rgba(13, 115, 119, 0.4)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
+              if (!isLoadingNextMonth) {
+                e.currentTarget.style.boxShadow = '0 0 30px rgba(13, 115, 119, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.boxShadow = '0 0 20px rgba(13, 115, 119, 0.2)';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            <Calendar className="h-4 w-4 mr-2 text-accent group-hover:scale-110 transition-transform" />
-            <span className="text-white/90">NEXT MONTH</span>
-            <ChevronRight className="h-4 w-4 ml-2 text-accent group-hover:translate-x-1 transition-transform" />
+            {isLoadingNextMonth ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 text-accent animate-spin" />
+                <span className="text-white/90">GENERATING...</span>
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4 mr-2 text-accent group-hover:scale-110 transition-transform" />
+                <span className="text-white/90">NEXT MONTH</span>
+                <ChevronRight className="h-4 w-4 ml-2 text-accent group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </Button>
         </div>
       </div>

@@ -9,6 +9,7 @@ export type BusinessData = {
   industry: string;
   products: string[];
   budget: number;
+  areaId?: number;
   location?: {
     lat: number;
     lng: number;
@@ -53,7 +54,7 @@ const Onboarding = () => {
     <div className="min-h-screen bg-background">
       {/* Progress Bar */}
       <div className="fixed top-0 left-0 right-0 h-1 bg-muted z-50">
-        <div 
+        <div
           className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
           style={{ width: `${(step / 3) * 100}%` }}
         />
@@ -67,19 +68,18 @@ const Onboarding = () => {
               <div key={stepNum} className="flex items-center">
                 <div className={`
                   w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all duration-300
-                  ${step === stepNum 
-                    ? "bg-gradient-to-br from-primary to-accent text-white scale-110 shadow-lg" 
-                    : step > stepNum 
-                    ? "bg-success text-success-foreground"
-                    : "bg-muted text-muted-foreground"
+                  ${step === stepNum
+                    ? "bg-gradient-to-br from-primary to-accent text-white scale-110 shadow-lg"
+                    : step > stepNum
+                      ? "bg-success text-success-foreground"
+                      : "bg-muted text-muted-foreground"
                   }
                 `}>
                   {stepNum}
                 </div>
                 {stepNum < 3 && (
-                  <div className={`w-16 h-1 mx-2 rounded transition-all duration-300 ${
-                    step > stepNum ? "bg-success" : "bg-muted"
-                  }`} />
+                  <div className={`w-16 h-1 mx-2 rounded transition-all duration-300 ${step > stepNum ? "bg-success" : "bg-muted"
+                    }`} />
                 )}
               </div>
             ))}
@@ -88,7 +88,7 @@ const Onboarding = () => {
           {/* Step Content */}
           <div className="animate-slide-in">
             {step === 1 && (
-              <BusinessSetup 
+              <BusinessSetup
                 businessData={businessData}
                 updateBusinessData={updateBusinessData}
                 onNext={handleNext}
