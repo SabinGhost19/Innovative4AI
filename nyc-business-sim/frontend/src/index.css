@@ -5,33 +5,33 @@
 /* 
 MINIMALIST GLASSY DESIGN SYSTEM
 Inspired by Apple's design language
-Color Palette: #323232 (Dark Gray), #0D7377 (Teal), #14FFEC (Bright Cyan)
-Theme: Professional, sophisticated, minimalist with progressive disclosure
+Color Palette: Black, Muted Gold (#D4AF37), Warm Amber, Deep Gray
+Theme: Professional, sophisticated, modern with subtle warm accents
 */
 
 @layer base {
   :root {
-    --background: 0 0% 3%;
-    --foreground: 0 0% 95%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
     --card: 0 0% 8%;
-    --card-foreground: 0 0% 95%;
+    --card-foreground: 0 0% 98%;
     --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 182 79% 26%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 50%;
-    --accent: 178 100% 54%;
-    --accent-foreground: 0 0% 5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 43 64% 52%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 38 44% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 40 58% 50%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --success: 182 79% 26%;
-    --success-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 182 79% 26%;
+    --success: 43 64% 52%;
+    --success-foreground: 0 0% 0%;
+    --border: 0 0% 20%;
+    --input: 0 0% 18%;
+    --ring: 43 64% 52%;
     --radius: 1rem;
   }
 }
@@ -73,29 +73,29 @@ Theme: Professional, sophisticated, minimalist with progressive disclosure
     @apply glass-card p-6 hover:border-primary/30 cursor-pointer;
   }
   .metric-card:hover {
-    box-shadow: 0 0 30px rgba(13, 115, 119, 0.15);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.25);
   }
   .gradient-text {
-    @apply bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent;
   }
 }
 
 @layer utilities {
   .glow-primary {
-    box-shadow: 0 0 30px rgba(13, 115, 119, 0.2);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
   }
   .glow-accent {
-    box-shadow: 0 0 40px rgba(20, 255, 236, 0.3);
+    box-shadow: 0 0 40px rgba(212, 175, 55, 0.4);
   }
   .animate-glow {
     animation: glow 2s ease-in-out infinite alternate;
   }
   @keyframes glow {
     from {
-      box-shadow: 0 0 20px hsl(182 79% 26% / 0.2);
+      box-shadow: 0 0 20px hsl(43 64% 52% / 0.25);
     }
     to {
-      box-shadow: 0 0 40px hsl(182 79% 26% / 0.5);
+      box-shadow: 0 0 40px hsl(43 64% 52% / 0.45);
     }
   }
   .animate-slide-in {
@@ -125,9 +125,9 @@ Theme: Professional, sophisticated, minimalist with progressive disclosure
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(182 79% 26%);
+  background: hsl(43 64% 52%);
 }
 ::selection {
-  background: hsl(182 79% 26% / 0.3);
-  color: hsl(178 100% 54%);
+  background: hsl(43 64% 52% / 0.25);
+  color: hsl(43 64% 75%);
 }

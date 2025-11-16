@@ -101,13 +101,29 @@ const Register = () => {
 
     if (step === "username") {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-                <Card className="w-full max-w-md shadow-2xl">
+            <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center p-4">
+                {/* Video Background */}
+                <div className="fixed inset-0 z-0">
+                    <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="absolute inset-0 w-full h-full object-cover blur-sm scale-105"
+                        style={{ filter: 'blur(8px) brightness(0.3)' }}
+                    >
+                        <source src="/bg2.mp4" type="video/mp4" />
+                    </video>
+                    <div className="absolute inset-0 bg-black/20" />
+                </div>
+
+                {/* Content */}
+                <Card className="relative z-10 w-full max-w-md shadow-2xl backdrop-blur-xl bg-black/20 border-white/10">
                     <CardHeader className="space-y-1">
                         <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                             NYC Business Simulator
                         </CardTitle>
-                        <CardDescription className="text-center text-base">
+                        <CardDescription className="text-center text-base text-white/70">
                             Create your account to start simulating
                         </CardDescription>
                     </CardHeader>
@@ -146,11 +162,11 @@ const Register = () => {
                             )}
                         </Button>
 
-                        <div className="text-center text-sm text-muted-foreground">
+                        <div className="text-center text-sm text-white/60">
                             Already have an account?{" "}
                             <Button
                                 variant="link"
-                                className="p-0 h-auto"
+                                className="p-0 h-auto text-primary hover:text-primary/80"
                                 onClick={() => navigate("/login")}
                             >
                                 Login here
