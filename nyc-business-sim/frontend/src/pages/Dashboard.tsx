@@ -4,7 +4,9 @@ import { BusinessData } from "./Onboarding";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import OverviewTab from "@/components/dashboard/OverviewTab";
+import SimulationResults from "@/components/dashboard/SimulationResults";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ const Dashboard = () => {
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const [lastEvent, setLastEvent] = useState<any>(null);
   const [lastTrends, setLastTrends] = useState<any>(null);
+  const [simulationOutputs, setSimulationOutputs] = useState<any>(null);
 
   useEffect(() => {
     const data = localStorage.getItem("businessData");
@@ -61,7 +64,8 @@ const Dashboard = () => {
       const data = await response.json();
 
       if (data.success && data.event) {
-        const event = data.event.event; // nested structure from agents-orchestrator
+        // Backend returns: { event: { success: true, event: {...} }, trends: { success: true, analysis: {...} } }
+        const event = data.event.event || data.event; // Handle both nested and direct structure
         const trends = data.trends?.analysis; // trends data
         setLastEvent(event);
         setLastTrends(trends);
@@ -100,6 +104,120 @@ const Dashboard = () => {
     }
   };
 
+  const handleFullSimulation = async () => {
+    if (!businessData?.areaId) {
+      toast({
+        title: "Error",
+        description: "No area data found. Please complete onboarding first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingEvent(true);
+
+    try {
+      // First, get census data from backend
+      const censusResponse = await fetch(`http://localhost:8000/api/get-area/${businessData.areaId}`);
+      if (!censusResponse.ok) {
+        throw new Error("Failed to fetch area data");
+      }
+      const areaData = await censusResponse.json();
+
+      // Get trends data
+      const trendsResponse = await fetch("http://localhost:8000/api/get-trends", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          business_type: businessData.industry || businessData.name,
+          location: "US-NY"
+        }),
+      });
+      const trendsData = await trendsResponse.json();
+
+      // Call full simulation endpoint
+      const response = await fetch("http://localhost:3000/api/simulation/run-full", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          businessType: businessData.industry || businessData.name,
+          location: {
+            address: areaData.data?.area_name || "Unknown",
+            neighborhood: areaData.data?.area_name || "Unknown",
+            county: "New York County",
+            lat: businessData.location.lat,
+            lng: businessData.location.lng,
+          },
+          censusData: areaData.detailed_data,
+          trendsData: trendsData,
+          survivalData: null,
+          currentMonth: currentMonth,
+          currentYear: currentYear,
+          playerDecisions: {
+            pricing_strategy: "competitive",
+            marketing_spend: 1000,
+            quality_level: "standard",
+            target_employee_count: 3,
+            avg_hourly_wage: 20
+          },
+          previousMonthState: {
+            revenue: 0,
+            profit: 0,
+            customers: 0,
+            cashBalance: businessData.budget
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to run full simulation");
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.outputs) {
+        setSimulationOutputs(data);
+
+        // Update month
+        if (currentMonth === 12) {
+          setCurrentMonth(1);
+          setCurrentYear(currentYear + 1);
+        } else {
+          setCurrentMonth(currentMonth + 1);
+        }
+
+        // Update cash balance
+        if (data.outputs.financialData?.cash_flow?.closing_balance) {
+          setCashBalance(data.outputs.financialData.cash_flow.closing_balance);
+        }
+
+        toast({
+          title: `✅ Simulation Complete!`,
+          description: `Month ${currentMonth} simulated in ${data.executionTime}ms`,
+          duration: 5000,
+        });
+
+        console.log("Full simulation results:", data);
+      } else {
+        throw new Error(data.error || "Unknown error");
+      }
+
+    } catch (error: any) {
+      console.error("Error running full simulation:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to run simulation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingEvent(false);
+    }
+  };
+
   if (!businessData) {
     return null;
   }
@@ -114,6 +232,38 @@ const Dashboard = () => {
         onNextMonth={handleNextMonth}
         isLoadingNextMonth={isLoadingEvent}
       />
+
+      {/* Action Buttons */}
+      <div className="px-8 py-4 flex gap-4">
+        <Button
+          onClick={handleFullSimulation}
+          disabled={isLoadingEvent}
+          size="lg"
+          className="bg-gradient-to-r from-primary to-accent"
+        >
+          {isLoadingEvent ? "🔄 Running Simulation..." : "🚀 Run Full Month Simulation"}
+        </Button>
+        <Button
+          onClick={handleNextMonth}
+          disabled={isLoadingEvent}
+          variant="outline"
+          size="lg"
+        >
+          {isLoadingEvent ? "⏳ Generating..." : "🎲 Quick Event Only"}
+        </Button>
+      </div>
+
+      {/* Full Simulation Results */}
+      {simulationOutputs && (
+        <div className="px-8 py-6">
+          <SimulationResults
+            outputs={simulationOutputs.outputs}
+            month={simulationOutputs.month}
+            year={simulationOutputs.year}
+            executionTime={simulationOutputs.executionTime}
+          />
+        </div>
+      )}
 
       {/* Simulation Insights Section */}
       <div className="px-8 py-6 space-y-6">
@@ -173,8 +323,8 @@ const Dashboard = () => {
                       </div>
 
                       <div className={`px-3 py-1 rounded-full text-xs font-medium ${lastTrends.main_trend.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                          lastTrends.main_trend.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-gray-500/20 text-gray-400'
+                        lastTrends.main_trend.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-gray-500/20 text-gray-400'
                         }`}>
                         {lastTrends.main_trend.confidence} confidence
                       </div>
@@ -192,8 +342,8 @@ const Dashboard = () => {
                     <div className="flex items-center gap-1">
                       <span className="text-white/50">Sentiment:</span>
                       <span className={`font-medium ${lastTrends.overall_sentiment === 'positive' ? 'text-green-400' :
-                          lastTrends.overall_sentiment === 'negative' ? 'text-red-400' :
-                            'text-gray-400'
+                        lastTrends.overall_sentiment === 'negative' ? 'text-red-400' :
+                          'text-gray-400'
                         }`}>
                         {lastTrends.overall_sentiment}
                       </span>

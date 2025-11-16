@@ -12,6 +12,7 @@ from database import init_db, get_db, AreaOverview, DetailedAreaAnalysis
 from census_service import analyze_area
 from detailed_analysis_service import analyze_area_detailed
 from trends_service import analyze_business_trends
+import business_survival_service as survival_svc
 
 app = FastAPI(title="NYC Business Simulator Backend")
 
@@ -69,6 +70,75 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+@app.get("/api/get-area/{area_id}")
+def get_area_by_id(area_id: int, db: Session = Depends(get_db)):
+    """
+    Get area data by ID including census and detailed analysis
+    """
+    try:
+        # Get area overview
+        area = db.query(AreaOverview).filter(AreaOverview.id == area_id).first()
+        if not area:
+            raise HTTPException(status_code=404, detail=f"Area ID {area_id} not found")
+        
+        # Get detailed analysis
+        detailed = db.query(DetailedAreaAnalysis).filter(
+            DetailedAreaAnalysis.area_overview_id == area_id
+        ).first()
+        
+        # Build census data structure
+        census_data = {
+            "demographics_detailed": {},
+            "derived_statistics": {},
+            "fips_codes": {
+                "state": area.state_fips,
+                "county": area.county_fips,
+                "tract": area.tract_fips,
+            },
+            "area_name": area.area_name or "Unknown Area",
+            "latitude": area.latitude,
+            "longitude": area.longitude,
+        }
+        
+        # Helper
+        def format_value(value, label):
+            return {
+                "value": value if value is not None else "N/A",
+                "label": label
+            }
+        
+        # Add demographics
+        demo = census_data["demographics_detailed"]
+        demo["B01001_001E"] = format_value(area.total_population, "Total Population")
+        demo["B01002_001E"] = format_value(area.median_age, "Median Age")
+        demo["B19013_001E"] = format_value(area.median_household_income, "Median Household Income")
+        demo["C24050_001E"] = format_value(area.total_workforce, "Total Workforce")
+        
+        if detailed:
+            census_data["derived_statistics"] = {
+                "poverty_rate": detailed.poverty_rate or 0,
+                "high_income_households_rate": detailed.high_income_households_rate or 0,
+                "bachelor_plus_rate": detailed.bachelor_plus_rate or 0,
+                "renter_rate": detailed.renter_rate or 0,
+                "work_from_home_rate": detailed.work_from_home_rate or 0,
+            }
+        
+        return {
+            "success": True,
+            "area_id": area_id,
+            "data": {
+                "area_name": area.area_name,
+                "latitude": area.latitude,
+                "longitude": area.longitude,
+            },
+            "detailed_data": census_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/launch-business", response_model=LaunchBusinessResponse)
 def launch_business(request: LaunchBusinessRequest, db: Session = Depends(get_db)):
@@ -495,6 +565,193 @@ async def simulation_next_month(request: SimulationNextMonthRequest, db: Session
             success=False,
             error=str(e)
         )
+
+
+# ========================================
+# BUSINESS SURVIVAL ENDPOINTS
+# ========================================
+
+@app.get("/api/survival/industry/{county_name}/{naics_code}")
+def get_industry_survival(
+    county_name: str, 
+    naics_code: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get survival rate for specific industry in a county.
+    
+    Example: /api/survival/industry/New York County, New York/72
+    """
+    result = survival_svc.get_survival_rate_by_industry(
+        db, county_name, naics_code=naics_code
+    )
+    
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No survival data found for {naics_code} in {county_name}"
+        )
+    
+    return result
+
+
+@app.get("/api/survival/business-type/{county_name}")
+def get_business_type_survival(
+    county_name: str,
+    business_type: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get survival rate by business type (e.g., 'coffee shop', 'restaurant', 'tech').
+    
+    Example: /api/survival/business-type/New York County, New York?business_type=coffee shop
+    """
+    result = survival_svc.find_business_type_survival(db, business_type, county_name)
+    
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No survival data found for '{business_type}' in {county_name}"
+        )
+    
+    return result
+
+
+@app.get("/api/survival/county/{county_name}")
+def get_county_survival_overview(
+    county_name: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all industries survival rates for a county.
+    
+    Example: /api/survival/county/New York County, New York
+    """
+    industries = survival_svc.get_all_industries_for_county(db, county_name)
+    county_total = survival_svc.get_county_total_survival(db, county_name)
+    
+    if not industries:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No survival data found for {county_name}"
+        )
+    
+    return {
+        "county": county_name,
+        "overall": county_total,
+        "industries": industries,
+        "total_industries": len(industries)
+    }
+
+
+@app.get("/api/survival/county/{county_name}/statistics")
+def get_county_survival_statistics(
+    county_name: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive survival statistics for a county.
+    
+    Example: /api/survival/county/New York County, New York/statistics
+    """
+    stats = survival_svc.get_survival_statistics(db, county_name)
+    
+    if not stats:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No survival data found for {county_name}"
+        )
+    
+    return stats
+
+
+@app.get("/api/survival/county/{county_name}/highest")
+def get_highest_survival_industries_endpoint(
+    county_name: str,
+    limit: int = 5,
+    db: Session = Depends(get_db)
+):
+    """
+    Get industries with highest survival rates (safest bets).
+    
+    Example: /api/survival/county/New York County, New York/highest?limit=10
+    """
+    industries = survival_svc.get_highest_survival_industries(db, county_name, limit)
+    
+    if not industries:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No survival data found for {county_name}"
+        )
+    
+    return {
+        "county": county_name,
+        "safest_industries": industries,
+        "count": len(industries)
+    }
+
+
+@app.get("/api/survival/county/{county_name}/lowest")
+def get_lowest_survival_industries_endpoint(
+    county_name: str,
+    limit: int = 5,
+    db: Session = Depends(get_db)
+):
+    """
+    Get industries with lowest survival rates (highest risk).
+    
+    Example: /api/survival/county/New York County, New York/lowest?limit=10
+    """
+    industries = survival_svc.get_lowest_survival_industries(db, county_name, limit)
+    
+    if not industries:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No survival data found for {county_name}"
+        )
+    
+    return {
+        "county": county_name,
+        "riskiest_industries": industries,
+        "count": len(industries)
+    }
+
+
+@app.get("/api/survival/industry-comparison")
+def get_industry_comparison(
+    naics_code: str = None,
+    industry_label: str = None,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Compare survival rates for same industry across different counties.
+    
+    Example: /api/survival/industry-comparison?naics_code=72&limit=15
+    Example: /api/survival/industry-comparison?industry_label=Accommodation&limit=10
+    """
+    if not naics_code and not industry_label:
+        raise HTTPException(
+            status_code=400,
+            detail="Either naics_code or industry_label must be provided"
+        )
+    
+    comparison = survival_svc.get_industry_comparison_across_counties(
+        db, naics_code=naics_code, industry_label=industry_label, limit=limit
+    )
+    
+    if not comparison:
+        raise HTTPException(
+            status_code=404,
+            detail="No data found for this industry"
+        )
+    
+    return {
+        "industry_filter": naics_code or industry_label,
+        "counties": comparison,
+        "count": len(comparison)
+    }
+
 
 if __name__ == "__main__":
     import uvicorn

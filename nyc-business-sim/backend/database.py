@@ -160,6 +160,34 @@ class CensusTractData(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class BusinessSurvival(Base):
+    """
+    Tabelă pentru Business Survival Rates - NY BDS 2017-2022
+    Conține 5-year survival rates pentru companii pe industrie și county
+    """
+    __tablename__ = "business_survival"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Location
+    county_name = Column(String(100), nullable=False, index=True)
+    
+    # Industry Classification
+    naics_industry_label = Column(String(255), nullable=False)
+    naics_code = Column(String(10), nullable=False, index=True)
+    
+    # Survival Data
+    firms_2017_start_pool = Column(Integer, nullable=False)  # Number of firms started in 2017
+    aggregate_5_year_survival_pct = Column(Float, nullable=False)  # % still operating after 5 years
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Composite index pentru căutări rapide
+    __table_args__ = (
+        {'comment': 'Business survival rates by industry and county (2017-2022)'},
+    )
+
+
 def init_db():
     """Initialize database tables"""
     Base.metadata.create_all(bind=engine)

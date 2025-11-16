@@ -20,6 +20,10 @@ python -c "from database import init_db; init_db(); print('✅ Tables initialize
 echo "📥 Populating census data from CSV..."
 python populate_census_data.py
 
+# Populate business survival data from CSV
+echo "📥 Populating business survival data from CSV..."
+python populate_business_survival.py
+
 # Start the application
 echo "🚀 Starting FastAPI application..."
 exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload
