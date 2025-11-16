@@ -194,6 +194,14 @@ export function calculateNewCustomersBassDiffusion(
   const totalNew = Math.round(organicAcquisition + marketingAcquisition);
   
   // Cap at 20% monthly growth (unrealistic to grow faster)
+  // BUT: Allow startup acquisition if currentCustomers is 0
+  if (currentCustomers === 0) {
+    // First month: Allow initial customer acquisition (no cap)
+    // Minimum: 10 customers from soft opening/friends & family
+    const minimumStartup = 10;
+    return Math.max(totalNew, minimumStartup);
+  }
+  
   const maxGrowth = Math.ceil(currentCustomers * 0.20);
   
   return Math.min(totalNew, maxGrowth);

@@ -1,6 +1,13 @@
 import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+  calculateTrendImpactScore,
+  classifySentiment,
+  determineConfidence,
+  generateActionableInsight,
+  classifyMomentum,
+} from './trends-math';
 
 /**
  * Schema pentru trend insights generate de agent
@@ -55,6 +62,12 @@ interface GoogleTrendsData {
 
 /**
  * Agent care analizează Google Trends și generează insights pentru business.
+ * 
+ * MATHEMATICAL APPROACH:
+ * - Impact scores: Calculated using trend formulas (NOT LLM)
+ * - Sentiment: Aggregated from mathematical impact scores
+ * - Confidence: Data quality metrics
+ * - LLM: Narrative descriptions only (trend names, detailed insights)
  */
 export async function analyzeTrendsForBusiness(
   businessType: string,
@@ -83,60 +96,171 @@ export async function analyzeTrendsForBusiness(
 
   const trends = trendsData.trends;
   
+  // ====================================================================
+  // MATHEMATICAL CALCULATIONS (NO LLM)
+  // ====================================================================
+  
+  // 1. Calculate impact score for main trend
+  const mainImpactScore = calculateTrendImpactScore(
+    trends.average_interest,
+    trends.interest_trend,
+    trends.peak_interest
+  );
+  
+  // 2. Calculate impact scores for top keywords
+  const keywordImpactScores = Object.entries(trends.keywords_performance).map(([keyword, perf]) => ({
+    keyword,
+    score: calculateTrendImpactScore(perf.average_interest, perf.trend, perf.peak_interest),
+    averageInterest: perf.average_interest,
+  }));
+  
+  // Sort by impact score
+  keywordImpactScores.sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+  
+  // 3. Calculate overall sentiment
+  const allImpactScores = [mainImpactScore, ...keywordImpactScores.slice(0, 2).map(k => k.score)];
+  const overallSentiment = classifySentiment(allImpactScores);
+  
+  // 4. Determine confidence levels
+  const mainConfidence = determineConfidence(
+    trendsData.keywords_analyzed.length,
+    trends.average_interest
+  );
+  
+  // 5. Generate actionable insights
+  const mainActionableInsight = generateActionableInsight(
+    trends.interest_trend,
+    mainImpactScore,
+    businessType
+  );
+  
+  // 6. Classify market momentum
+  // Use rising queries as proxy for acceleration
+  const risingQueriesCount = trends.related_rising_queries.length;
+  const marketMomentum = classifyMomentum(
+    mainImpactScore / 10, // Normalize MACD-like value
+    trends.average_interest // Use as RSI proxy
+  );
+  
+  // ====================================================================
+  // PARTIAL SCHEMA FOR LLM (QUALITATIVE ONLY)
+  // ====================================================================
+  
+  const PartialTrendSchema = z.object({
+    trend_name: z.string().describe('Numele trendului identificat'),
+    description: z.string().describe('Descriere scurtă a trendului'),
+  });
+  
+  const PartialTrendsAnalysisSchema = z.object({
+    main_trend: PartialTrendSchema,
+    secondary_trends: z.array(PartialTrendSchema).max(2),
+  });
+  
+  // ====================================================================
+  // LLM PROMPT (NARRATIVE ONLY, NOT CALCULATIONS)
+  // ====================================================================
+  // ====================================================================
+  // LLM PROMPT (NARRATIVE ONLY, NOT CALCULATIONS)
+  // ====================================================================
+  
   // Construiește context pentru LLM
   const systemPrompt = `Ești un expert în analiza tendințelor de piață pentru business-uri locale.
-Rolul tău este să analizezi datele Google Trends și să generezi insights acționabile.
 
-IMPORTANT:
-- Fii SPECIFIC și bazează-te pe datele reale furnizate
-- Impact score: pozitiv (+) = oportunitate, negativ (-) = risc/scădere
-- Oferă insights ACȚIONABILE, nu doar observații
-- Ține cont de context temporal (luna ${currentMonth}/${currentYear})`;
+CRITICAL: DO NOT calculate impact scores, sentiment, or confidence.
+These are already calculated mathematically.
 
-  const userPrompt = `Analizează următoarele date Google Trends pentru business-ul meu:
+Your role: Provide trend names and narrative descriptions only.
+
+CALCULATED METRICS (ALREADY DONE):
+- Main Impact Score: ${mainImpactScore}/100
+- Overall Sentiment: ${overallSentiment}
+- Market Momentum: ${marketMomentum}
+- Confidence: ${mainConfidence}`;
+
+  const userPrompt = `Provide narrative insights for Google Trends data:
 
 🏢 BUSINESS:
 - Tip: ${businessType}
 - Locație: ${location.neighborhood}
 
-📊 GOOGLE TRENDS DATA (Ultima Lună):
+📊 CALCULATED TREND METRICS:
+- Main Trend Impact: ${mainImpactScore}/100 (${mainImpactScore > 0 ? 'positive opportunity' : 'negative risk'})
+- Overall Sentiment: ${overallSentiment}
+- Market Momentum: ${marketMomentum}
+
+📈 GOOGLE TRENDS DATA:
 - Trend general: ${trends.interest_trend}
 - Interest mediu: ${trends.average_interest}/100
 - Interest maxim: ${trends.peak_interest}/100
 
-🔑 KEYWORDS PERFORMANCE:
-${Object.entries(trends.keywords_performance).map(([keyword, perf]) => 
-  `- "${keyword}": ${perf.average_interest}/100 (trend: ${perf.trend})`
+🔑 TOP KEYWORDS (by calculated impact):
+${keywordImpactScores.slice(0, 3).map((k, i) => 
+  `${i+1}. "${k.keyword}" - Impact: ${k.score}/100, Interest: ${k.averageInterest}/100`
 ).join('\n')}
 
-📈 TOP RISING QUERIES (Cele mai populare căutări în creștere):
-${trends.related_rising_queries.slice(0, 5).map((q, i) => 
+📈 TOP RISING QUERIES:
+${trends.related_rising_queries.slice(0, 3).map((q, i) => 
   `${i+1}. "${q.query}" (${q.value})`
 ).join('\n') || 'N/A'}
 
-🔥 TRENDING SEARCHES (Căutări în trend):
-${trends.trending_searches.slice(0, 5).map((s, i) => `${i+1}. ${s}`).join('\n') || 'N/A'}
-
-📅 CONTEXT TEMPORAL:
-- Luna curentă: ${currentMonth}/12 (${getSeasonFromMonth(currentMonth)})
+📅 CONTEXT:
+- Luna: ${currentMonth}/12 (${getSeasonFromMonth(currentMonth)})
 - An: ${currentYear}
 
-GENEREAZĂ:
-1. UN trend principal care are cel mai mare impact pentru acest business
-2. Maxim 2 trenuri secundare relevante
-3. Evaluează sentimentul general și momentum-ul pieței
+PROVIDE:
+1. Main Trend Name (based on highest impact keyword/query)
+2. Main Trend Description (narrative context)
+3. Secondary Trends (2 trends from other top keywords)
+4. Secondary Trend Descriptions
 
-IMPORTANT: Bazează-te DOAR pe datele furnizate. Dacă un trend nu e relevant pentru acest tip de business, marchează-l ca irelevant.`;
+Be specific. Reference the rising queries and trending searches.`;
 
   const result = await generateObject({
     model: openai('gpt-4o'),
-    schema: TrendsAnalysisSchema,
+    schema: PartialTrendsAnalysisSchema,
     system: systemPrompt,
     prompt: userPrompt,
     temperature: 0.7,
   });
-
-  return result.object;
+  
+  // ====================================================================
+  // COMBINE MATH + LLM
+  // ====================================================================
+  
+  return {
+    main_trend: {
+      trend_name: result.object.main_trend.trend_name,
+      impact_score: mainImpactScore,
+      relevance: Math.abs(mainImpactScore) > 10, // Relevant if |score| > 10
+      description: result.object.main_trend.description,
+      actionable_insight: mainActionableInsight,
+      confidence: mainConfidence,
+    },
+    secondary_trends: result.object.secondary_trends.map((trend, index) => {
+      const keywordData = keywordImpactScores[index + 1]; // Skip first (main trend)
+      const score = keywordData?.score || 0;
+      const confidence = determineConfidence(
+        trendsData.keywords_analyzed.length,
+        keywordData?.averageInterest || 0
+      );
+      const insight = generateActionableInsight(
+        trends.interest_trend,
+        score,
+        businessType
+      );
+      
+      return {
+        trend_name: trend.trend_name,
+        impact_score: score,
+        relevance: Math.abs(score) > 10,
+        description: trend.description,
+        actionable_insight: insight,
+        confidence: confidence,
+      };
+    }),
+    overall_sentiment: overallSentiment,
+    market_momentum: marketMomentum,
+  };
 }
 
 /**

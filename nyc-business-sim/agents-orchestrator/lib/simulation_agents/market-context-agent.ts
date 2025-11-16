@@ -4,6 +4,12 @@
  * Analyzes overall market conditions, industry saturation, and survival benchmarks.
  * Uses Census data + Business Survival data to establish baseline context.
  * 
+ * MATHEMATICAL APPROACH:
+ * - Industry saturation: Calculated using Reilly's Law + competitor density
+ * - Market risk: Formula-based (survival rate + saturation + economic factors)
+ * - Economic climate: Income ratios + poverty + employment metrics
+ * - LLM: Qualitative insights only (trends, strategy narrative)
+ * 
  * Model: gpt-4o-mini (fast, deterministic)
  * Output: MarketContextSchema (structured)
  */
@@ -14,9 +20,25 @@ import { z } from 'zod';
 import type { DetailedCensusData, SurvivalData } from '../../core/types';
 import { MarketContextSchema } from '../../core/schemas';
 import { LLM_CONFIG } from '../../core/constants';
+import { estimateCompetitorCount } from './competition-math';
+import { 
+  calculateIndustrySaturation,
+  calculateMarketCapacity,
+  calculateMarketRisk,
+  classifyMarketRisk,
+  calculateEconomicClimate,
+  calculateMarketSharePotential,
+  calculateMarketGrowthRate,
+  recommendStrategy
+} from './market-math';
 
 /**
  * Generate market context analysis
+ * 
+ * CALCULATION SEQUENCE:
+ * 1. Calculate mathematical metrics (saturation, risk, climate, capacity)
+ * 2. LLM generates qualitative insights (trends, strategy narrative)
+ * 3. Combine: Math provides hard numbers, LLM provides context
  */
 export async function analyzeMarketContext(
   businessType: string,
@@ -31,69 +53,177 @@ export async function analyzeMarketContext(
   const stats = censusData.derived_statistics;
   
   // Extract key demographics
-  const totalPopulation = demo.B01001_001E?.value || 0;
-  const medianIncome = demo.B19013_001E?.value || 0;
+  const totalPopulation = typeof demo.B01001_001E?.value === 'number' 
+    ? demo.B01001_001E.value 
+    : 0;
+  const medianIncome = typeof demo.B19013_001E?.value === 'number'
+    ? demo.B19013_001E.value
+    : 0;
   const workersTotal = demo.B08301_001E?.value || 0;
+  const povertyRate = stats.poverty_rate;
+  const workFromHomeRate = stats.work_from_home_rate;
   
-  // Build system prompt
+  // ====================================================================
+  // MATHEMATICAL CALCULATIONS (NO LLM)
+  // ====================================================================
+  
+  // 1. Estimate competitors using competition-math
+  const estimatedCompetitors = estimateCompetitorCount(
+    businessType,
+    totalPopulation,
+    medianIncome
+  );
+  
+  // 2. Industry saturation (Reilly's Law + density)
+  const industrySaturation = calculateIndustrySaturation(
+    businessType,
+    totalPopulation,
+    medianIncome,
+    estimatedCompetitors
+  );
+  
+  // 3. Market capacity (potential monthly customers)
+  const marketCapacity = calculateMarketCapacity(
+    totalPopulation,
+    medianIncome,
+    businessType
+  );
+  
+  // 4. Economic climate classification
+  const economicClimate = calculateEconomicClimate(
+    medianIncome,
+    povertyRate,
+    workFromHomeRate
+  );
+  
+  // 5. Market risk score
+  const survivalRate5Year = survivalData?.survival_rate_5_year || 50; // Default 50%
+  const marketRiskScore = calculateMarketRisk(
+    survivalRate5Year,
+    industrySaturation,
+    medianIncome,
+    povertyRate
+  );
+  let marketRiskLevel = classifyMarketRisk(marketRiskScore);
+  
+  // Schema only supports low/medium/high, map very_high -> high
+  if (marketRiskLevel === 'very_high') {
+    marketRiskLevel = 'high' as const;
+  }
+  
+  // 6. Market share potential
+  const marketSharePotential = calculateMarketSharePotential(
+    estimatedCompetitors,
+    industrySaturation,
+    1.0 // Assume average quality for new business
+  );
+  
+  // 7. Market growth rate
+  const marketGrowthRate = calculateMarketGrowthRate(
+    totalPopulation,
+    medianIncome,
+    industrySaturation
+  );
+  
+  // 8. Recommended strategy
+  const recommendedStrategy = recommendStrategy(
+    industrySaturation,
+    marketRiskScore,
+    medianIncome
+  );
+  
+  // ====================================================================
+  // PARTIAL SCHEMA FOR LLM (QUALITATIVE ONLY)
+  // ====================================================================
+  
+  const PartialMarketContextSchema = z.object({
+    market_trends: z.array(z.string()).max(3).describe('Top 3 specific market trends affecting this business'),
+    strategic_considerations: z.array(z.string()).describe('Key strategic factors to consider'),
+    risk_factors: z.array(z.string()).max(3).describe('Specific risk factors for this market'),
+  });
+  
+  // ====================================================================
+  // LLM PROMPT (CONTEXT ONLY, NOT CALCULATIONS)
+  // ====================================================================
+  
   const systemPrompt = `You are a market analysis expert specializing in NYC business ecosystems.
-Your role is to analyze market conditions and provide strategic context for business planning.
 
-IMPORTANT:
-- Base ALL analysis on provided data (Census + Survival rates)
-- Be realistic and data-driven
-- Consider seasonal factors (month ${currentMonth})
-- Economic climate should reflect macro trends AND local demographics
-- Industry saturation is % of market already served (0-100)`;
+CRITICAL: DO NOT calculate numbers. Numbers are already calculated mathematically.
+Your role: Provide qualitative insights, trends, and strategic narrative.
 
-  const userPrompt = `Analyze market context for this business:
+Focus on:
+- Market trends (demographic shifts, consumer behavior, technology)
+- Strategic considerations (positioning, timing, competitive advantages)`;
+
+  const userPrompt = `Provide qualitative market insights for this business:
 
 🏢 BUSINESS:
 - Type: ${businessType}
 - Location: ${location.neighborhood}, ${location.county}
 
-📊 DEMOGRAPHICS (Census Data):
-- Population: ${typeof totalPopulation === 'number' ? totalPopulation.toLocaleString() : totalPopulation}
-- Median Income: $${typeof medianIncome === 'number' ? medianIncome.toLocaleString() : medianIncome}
+📊 CALCULATED METRICS (ALREADY DONE):
+- Industry Saturation: ${industrySaturation}%
+- Market Risk: ${marketRiskLevel} (${marketRiskScore}/100)
+- Economic Climate: ${economicClimate}
+- Estimated Competitors: ${estimatedCompetitors}
+- Market Capacity: ${marketCapacity.toLocaleString()} potential monthly customers
+- Market Share Potential: ${(marketSharePotential * 100).toFixed(1)}%
+- Market Growth Rate: ${marketGrowthRate}% annually
+- Recommended Strategy: ${recommendedStrategy}
+
+📈 DEMOGRAPHICS:
+- Population: ${totalPopulation.toLocaleString()}
+- Median Income: $${medianIncome.toLocaleString()}
 - Bachelor's Degree+: ${(stats.bachelor_plus_rate * 100).toFixed(1)}%
-- Poverty Rate: ${(stats.poverty_rate * 100).toFixed(1)}%
-- High Income Households (>$150k): ${(stats.high_income_households_rate * 100).toFixed(1)}%
-- Work from Home: ${(stats.work_from_home_rate * 100).toFixed(1)}%
-- Renter Rate: ${(stats.renter_rate * 100).toFixed(1)}%
-- Total Workers: ${typeof workersTotal === 'number' ? workersTotal.toLocaleString() : workersTotal}
+- Poverty Rate: ${(povertyRate * 100).toFixed(1)}%
+- High Income (>$150k): ${(stats.high_income_households_rate * 100).toFixed(1)}%
+- Work from Home: ${(workFromHomeRate * 100).toFixed(1)}%
 
-📈 SURVIVAL BENCHMARK:
-${survivalData ? `
-- Industry: ${survivalData.industry}
-- 5-Year Survival Rate: ${survivalData.survival_rate_5_year}%
-- Risk Level: ${survivalData.risk_level}
-- Interpretation: ${survivalData.interpretation}
-- Data pool: ${survivalData.firms_2017_start_pool} firms tracked
-` : 'No survival data available for this industry/county'}
-
-📅 TEMPORAL CONTEXT:
+📅 TEMPORAL:
 - Month: ${currentMonth}/12 (${getSeasonName(currentMonth)})
 - Year: ${currentYear}
 
-ANALYZE:
-1. Economic Climate: Based on income levels, employment, and current month
-2. Industry Saturation: Estimate % of market already served (consider population density, competition)
-3. Market Risk: Combine survival data + demographics + seasonality
-4. Survival Benchmark: Your estimate vs industry average
-5. Recommended Strategy: What approach fits this market best?
-6. Market Trends: Top 3 trends affecting this business type in this area
+${survivalData ? `� SURVIVAL BENCHMARK:
+- Industry: ${survivalData.industry}
+- 5-Year Survival: ${survivalData.survival_rate_5_year}%
+- Risk: ${survivalData.risk_level}` : ''}
 
-Be specific and quantitative. Reference the data.`;
+PROVIDE:
+1. Market Trends (3 specific trends - demographic, technology, consumer behavior)
+2. Risk Factors (3 specific risks for this business type in this market)
+3. Strategic Considerations (NOT needed - already calculated recommended_strategy)
+
+Be specific. Reference the calculated metrics.`;
 
   const result = await generateObject({
     model: openai(LLM_CONFIG.FAST_MODEL),
-    schema: MarketContextSchema,
+    schema: PartialMarketContextSchema,
     system: systemPrompt,
     prompt: userPrompt,
     temperature: LLM_CONFIG.DETERMINISTIC,
   });
 
-  return result.object;
+  // ====================================================================
+  // COMBINE MATH + LLM
+  // ====================================================================
+  
+  // Calculate estimated survival rate for YOUR business (baseline + adjustments)
+  const yourEstimatedSurvival = survivalRate5Year * (
+    1 - (marketRiskScore / 200) // Risk penalty (max -50%)
+  );
+  
+  return {
+    economic_climate: economicClimate,
+    industry_saturation: industrySaturation,
+    market_risk_level: marketRiskLevel,
+    survival_benchmark: {
+      industry_5yr_survival: survivalRate5Year,
+      your_estimated_survival: Math.round(yourEstimatedSurvival * 10) / 10,
+      risk_factors: result.object.risk_factors,
+    },
+    recommended_strategy: recommendedStrategy,
+    market_trends: result.object.market_trends,
+  };
 }
 
 /**

@@ -32,7 +32,7 @@ export type BusinessEvent = z.infer<typeof EventSchema>;
  */
 export async function generateBusinessEvent(
   businessType: string,
-  location: { address: string; neighborhood: string; lat: number; lng: number; county: string },
+  location: { address: string; neighborhood: string; lat: number; lng: number; county?: string },
   censusData: DetailedCensusData,
   currentMonth: number,
   currentYear: number
@@ -60,8 +60,8 @@ export async function generateBusinessEvent(
   // Calculez metrici derivate
   const educationRate = ((bachelorsDegree + mastersDegree + phdDegree) / totalEducation) * 100;
   
-  // Map county to borough
-  const borough = mapCountyToBorough(location.county);
+  // Map county to borough (with fallback)
+  const borough = mapCountyToBorough(location.county || location.neighborhood || 'Brooklyn');
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // MONTE CARLO EVENT SELECTION
