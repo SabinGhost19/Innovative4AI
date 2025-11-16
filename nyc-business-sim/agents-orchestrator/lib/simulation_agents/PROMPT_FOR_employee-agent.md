@@ -13,7 +13,7 @@ Copy everything below this line and paste into Claude.
 
 ## 📝 Cum să Folosești Acest Prompt
 
-1. Înlocuiește `market-context-agent` cu numele agentului (ex: `market-context-agent`, `supplier-agent`)
+1. Înlocuiește `employee-agent` cu numele agentului (ex: `market-context-agent`, `supplier-agent`)
 2. Copiază prompt-ul complet în Claude
 3. Atașează fișierele relevante când este necesar
 
@@ -28,7 +28,7 @@ Tu ești un senior TypeScript developer expert în Vercel AI SDK, OpenAI integra
 
 ## SARCINA TA
 
-Implementează agentul **market-context-agent** pentru sistemul NYC Business Simulator, conform arhitecturii complete definite în documentația de mai jos.
+Implementează agentul **employee-agent** pentru sistemul NYC Business Simulator, conform arhitecturii complete definite în documentația de mai jos.
 
 ## CERINȚE CRITICE
 
@@ -197,102 +197,10 @@ Identifică main trend-ul și impactul său asupra businessului.
 
 ---
 
-## 🎯 SPECIFICAȚII PENTRU AGENTUL market-context-agent
+## 🎯 SPECIFICAȚII PENTRU AGENTUL employee-agent
 
 <AICI VA FI SECȚIUNEA SPECIFICĂ PENTRU FIECARE AGENT - VEZI MAI JOS>
-Bazându-te pe:
-- Arhitectura completă (ARCHITECTURE.md)
-- Agenții existenți (events-agent.ts, trends-agent.ts)
-- Specificațiile pentru market-context-agent
-- Checklist-ul de mai sus
 
-Generează codul complet, funcțional, production-ready pentru **market-context-agent**.
-
-GO! 🚀
-```
-
----
-
-## 🎯 SPECIFICAȚII PER AGENT
-
-
-
----
-
-### Pentru `market-context-agent.ts`
-
-```markdown
-## SPECIFICAȚII AGENT: Market Context Agent
-
-### Detalii Tehnice
-- **Model**: `gpt-4o-mini`
-- **Temperature**: `0.3` (consistență)
-- **Execution**: PHASE 1 (Sequential, primul agent care rulează)
-- **Timp estimat**: ~1s
-
-### Input Type
-```typescript
-interface MarketContextInput {
-  census_data: {
-    total_population: number;
-    median_household_income: number;
-    median_rent: number;
-    poverty_rate: number;
-    education_bachelor_rate: number;
-    work_from_home_rate: number;
-  };
-  business_type: string;
-  location: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
-}
-```
-
-### Output Schema (Zod)
-```typescript
-const MarketContextSchema = z.object({
-  market_size_estimate: z.number().min(0),
-  dominant_segments: z.array(z.string()).max(3),
-  demand_score: z.number().min(0).max(100),
-  price_sensitivity_score: z.number().min(0).max(100),
-  quality_preference_score: z.number().min(0).max(100),
-  foot_traffic_multiplier: z.number().min(0.5).max(2.0)
-});
-```
-
-### Rol & Logică
-- Procesează Census data și identifică 2-3 segmente dominante
-- LLM identifică segmentele, TypeScript ar putea calcula scorurile (sau LLM)
-- market_size_estimate: clienți potențiali/lună
-- dominant_segments: ["young_professionals", "high_income", "families"]
-- Scorurile influențează Customer Agent mai târziu
-
-### System Prompt Template
-```
-Tu ești un expert în analiză de piață care procesează date Census pentru a evalua potențialul unei locații.
-
-REGULI:
-- Identifică 2-3 segmente dominante de clienți din datele Census
-- Estimează dimensiunea pieței (clienți potențiali/lună) bazat pe populație și business type
-- Calculează scoruri pentru demand, price sensitivity, quality preference (0-100)
-- foot_traffic_multiplier: 0.5-2.0 (bazat pe work_from_home_rate, densitate, etc.)
-
-OUTPUT: DOAR numere și array-uri, nu text narrativ.
-```
-
-### User Prompt Include
-- Business type
-- Location address
-- Census metrics (toate cele 6)
-- "Estimează market context pentru acest business"
-
-### Validări Importante
-- market_size_estimate > 0 (logic check)
-- dominant_segments.length <= 3
-- Toate scorurile 0-100
-```
 ---
 
 ## 📋 CHECKLIST ÎNAINTE DE LIVRARE
@@ -346,7 +254,7 @@ Verifică că implementarea ta îndeplinește TOATE criteriile:
 
 Livrează:
 
-1. **Fișierul complet**: `market-context-agent.ts`
+1. **Fișierul complet**: `employee-agent.ts`
 2. **Comentarii explicative** în cod
 3. **Exemplu de test** (opțional dar apreciat):
 
@@ -394,7 +302,7 @@ console.log('Result:', result);
 ```
 Input Data (Census, Trends, etc.)
         ↓
-  market-context-agent Agent
+  employee-agent Agent
         ↓
   LLM Processing (OpenAI)
         ↓
@@ -470,10 +378,10 @@ Dacă ai probleme:
 Bazându-te pe:
 - Arhitectura completă (ARCHITECTURE.md)
 - Agenții existenți (events-agent.ts, trends-agent.ts)
-- Specificațiile pentru market-context-agent
+- Specificațiile pentru employee-agent
 - Checklist-ul de mai sus
 
-Generează codul complet, funcțional, production-ready pentru **market-context-agent**.
+Generează codul complet, funcțional, production-ready pentru **employee-agent**.
 
 GO! 🚀
 ```
