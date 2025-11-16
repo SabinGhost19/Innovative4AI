@@ -123,7 +123,7 @@ const Register = () => {
                         <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                             NYC Business Simulator
                         </CardTitle>
-                        <CardDescription className="text-center text-base text-white/70">
+                        <CardDescription className="text-center text-lg text-white/70">
                             Create your account to start simulating
                         </CardDescription>
                     </CardHeader>
@@ -162,7 +162,7 @@ const Register = () => {
                             )}
                         </Button>
 
-                        <div className="text-center text-sm text-white/60">
+                        <div className="text-center text-base text-white/60">
                             Already have an account?{" "}
                             <Button
                                 variant="link"

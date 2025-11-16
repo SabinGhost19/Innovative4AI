@@ -79,9 +79,23 @@ const BusinessMap = ({ businessLocation, areaId, industryType }: BusinessMapProp
       try {
         const response = await fetch(`http://localhost:8000/api/get-area/${areaId}`);
         if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            setDemographicData(data.data);
+          const result = await response.json();
+          if (result.success && result.detailed_data) {
+            // Extract demographic data from the response structure
+            const demographics = result.detailed_data.demographics_detailed;
+            const derivedStats = result.detailed_data.derived_statistics;
+            
+            setDemographicData({
+              median_income: demographics?.B19013_001E?.value || 0,
+              total_population: demographics?.B01001_001E?.value || 0,
+              population_density: derivedStats?.poverty_rate || 0,
+              area_name: result.detailed_data.area_name || result.data.area_name,
+            });
+            
+            console.log('✅ Demographic data loaded:', {
+              median_income: demographics?.B19013_001E?.value,
+              total_population: demographics?.B01001_001E?.value,
+            });
           }
         }
       } catch (error) {
@@ -191,10 +205,10 @@ const BusinessMap = ({ businessLocation, areaId, industryType }: BusinessMapProp
         >
           <div className="flex items-center gap-2 mb-2">
             <MapPin className="h-4 w-4 text-primary" />
-            <span className="text-xs text-white/50 uppercase tracking-wider">Your Location</span>
+            <span className="text-sm text-white/50 uppercase tracking-wider">Your Location</span>
           </div>
-          <p className="text-sm text-white/80 font-light">
-            {businessLocation.neighborhood || businessLocation.address || 'New York, NY'}
+                    <p className="text-base text-white/80 font-light">
+            {businessLocation.address || `${businessLocation.lat.toFixed(4)}, ${businessLocation.lng.toFixed(4)}`}
           </p>
         </div>
 
@@ -210,10 +224,10 @@ const BusinessMap = ({ businessLocation, areaId, industryType }: BusinessMapProp
               }}
             >
               <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 text-accent" />
-                <span className="text-xs text-white/50 uppercase tracking-wider">Median Income</span>
+                <DollarSign className="h-4 w-4 text-primary" />
+                <span className="text-sm text-white/50 uppercase tracking-wider">Median Income</span>
               </div>
-              <p className="text-sm text-white/80 font-light">
+              <p className="text-base text-white/80 font-light">
                 ${demographicData?.median_income?.toLocaleString() || 'N/A'}
               </p>
             </div>
@@ -228,9 +242,9 @@ const BusinessMap = ({ businessLocation, areaId, industryType }: BusinessMapProp
             >
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4 text-primary" />
-                <span className="text-xs text-white/50 uppercase tracking-wider">Population</span>
+                <span className="text-sm text-white/50 uppercase tracking-wider">Population</span>
               </div>
-              <p className="text-sm text-white/80 font-light">
+              <p className="text-base text-white/80 font-light">
                 {demographicData?.total_population?.toLocaleString() || 'N/A'}
               </p>
             </div>
@@ -250,7 +264,7 @@ const BusinessMap = ({ businessLocation, areaId, industryType }: BusinessMapProp
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-light text-white/80">Market Overview</h3>
-          <div className="flex items-center gap-4 text-xs text-white/50">
+          <div className="flex items-center gap-4 text-sm text-white/50">
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-primary"></div>
               <span>Your Business</span>

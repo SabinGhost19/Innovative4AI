@@ -118,12 +118,12 @@ const ReportsTab = () => {
                         >
                             <DollarSign className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Revenue</span>
+                        <span className="text-sm font-light text-white/40 uppercase tracking-wider">Revenue</span>
                     </div>
                     <p className="text-3xl font-light text-white/90 mb-2">${currentMonth.revenue.toLocaleString()}</p>
-                    <div className={`flex items-center gap-1.5 text-sm ${revenueChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
-                        {revenueChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                        <span className="font-light text-xs">{Math.abs(revenueChange).toFixed(1)}%</span>
+                    <div className={`flex items-center gap-1.5 text-base ${revenueChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
+                        {revenueChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                        <span className="font-light text-sm">{Math.abs(revenueChange).toFixed(1)}%</span>
                     </div>
                 </div>
 
@@ -155,12 +155,12 @@ const ReportsTab = () => {
                         >
                             <TrendingUp className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Profit</span>
+                        <span className="text-sm font-light text-white/40 uppercase tracking-wider">Profit</span>
                     </div>
                     <p className="text-3xl font-light text-accent mb-2">${currentMonth.profit.toLocaleString()}</p>
-                    <div className={`flex items-center gap-1.5 text-sm ${profitChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
-                        {profitChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                        <span className="font-light text-xs">{Math.abs(profitChange).toFixed(1)}%</span>
+                    <div className={`flex items-center gap-1.5 text-base ${profitChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
+                        {profitChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                        <span className="font-light text-sm">{Math.abs(profitChange).toFixed(1)}%</span>
                     </div>
                 </div>
 
@@ -192,12 +192,12 @@ const ReportsTab = () => {
                         >
                             <Users className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Customers</span>
+                        <span className="text-sm font-light text-white/40 uppercase tracking-wider">Customers</span>
                     </div>
                     <p className="text-3xl font-light text-white/90 mb-2">{currentMonth.customers.toLocaleString()}</p>
-                    <div className={`flex items-center gap-1.5 text-sm ${customerChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
-                        {customerChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                        <span className="font-light text-xs">{Math.abs(customerChange).toFixed(1)}%</span>
+                    <div className={`flex items-center gap-1.5 text-base ${customerChange >= 0 ? 'text-accent' : 'text-white/40'}`}>
+                        {customerChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                        <span className="font-light text-sm">{Math.abs(customerChange).toFixed(1)}%</span>
                     </div>
                 </div>
 
@@ -229,10 +229,10 @@ const ReportsTab = () => {
                         >
                             <ShoppingCart className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-xs font-light text-white/40 uppercase tracking-wider">Expenses</span>
+                        <span className="text-sm font-light text-white/40 uppercase tracking-wider">Expenses</span>
                     </div>
                     <p className="text-3xl font-light text-white/40 mb-2">${currentMonth.expenses.toLocaleString()}</p>
-                    <p className="text-xs text-white/30 font-light">
+                    <p className="text-sm text-white/30 font-light">
                         {((currentMonth.expenses / currentMonth.revenue) * 100).toFixed(1)}% of revenue
                     </p>
                 </div>

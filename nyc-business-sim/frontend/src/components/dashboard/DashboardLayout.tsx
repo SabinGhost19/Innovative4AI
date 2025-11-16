@@ -19,8 +19,6 @@ type Props = {
 
 const navigationItems = [
   { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
-  { name: "Reports", path: "/dashboard/reports", icon: FileText },
-  { name: "Competitors", path: "/dashboard/competitors", icon: Users },
   { name: "Time Travel", path: "/dashboard/revert", icon: History },
 ];
 
@@ -90,11 +88,11 @@ const DashboardLayout = ({ children, strategyPanel }: Props) => {
               >
                 <Icon className="h-5 w-5 flex-shrink-0 transition-all duration-300 group-hover:scale-110" />
                 {!collapsed && (
-                  <span className="font-normal text-sm tracking-wide">{item.name}</span>
+                  <span className="font-normal text-base tracking-wide">{item.name}</span>
                 )}
                 {collapsed && (
                   <div className="absolute left-full ml-4 px-3 py-1.5 rounded-lg backdrop-blur-xl bg-black/80 border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 whitespace-nowrap">
-                    <span className="text-sm text-white">{item.name}</span>
+                    <span className="text-base text-white">{item.name}</span>
                   </div>
                 )}
               </NavLink>

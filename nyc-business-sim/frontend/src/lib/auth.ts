@@ -248,6 +248,7 @@ export function logout(): void {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem("businessData"); // Clean old format
+  localStorage.removeItem("current_simulation_outputs"); // Clean simulation outputs
   cleanupTempRegistration(); // Clean temp registration data
 }
 

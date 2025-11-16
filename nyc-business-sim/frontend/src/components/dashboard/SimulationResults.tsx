@@ -92,7 +92,7 @@ export default function SimulationResults({ outputs, month, year, executionTime 
                         ⚡ {executionTime}ms
                     </Badge>
                 </div>
-                <p className="text-white/60 text-sm">
+                <p className="text-white/60 text-base">
                     Click on cards to see detailed analysis
                 </p>
             </div>
@@ -120,17 +120,17 @@ export default function SimulationResults({ outputs, month, year, executionTime 
                             {/* Summary based on card type */}
                             {card.id === 'financial' && (
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Revenue</span>
                                         <span className="text-green-400 font-semibold">${card.summary.revenue.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Net Profit</span>
                                         <span className={`font-semibold ${card.summary.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                             ${card.summary.profit.toLocaleString()}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Margin</span>
                                         <span className="text-white font-semibold">{card.summary.margin.toFixed(1)}%</span>
                                     </div>
@@ -139,15 +139,15 @@ export default function SimulationResults({ outputs, month, year, executionTime 
 
                             {card.id === 'customers' && (
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Total</span>
                                         <span className="text-primary font-semibold">{card.summary.total}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">New</span>
                                         <span className="text-green-400 font-semibold">+{card.summary.newCustomers}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Retention</span>
                                         <span className="text-white font-semibold">{(card.summary.retention).toFixed(1)}%</span>
                                     </div>
@@ -156,11 +156,11 @@ export default function SimulationResults({ outputs, month, year, executionTime 
 
                             {card.id === 'market' && (
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Saturation</span>
                                         <span className="text-primary font-semibold">{card.summary.saturation}%</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Risk Level</span>
                                         <span className={`font-semibold ${
                                             card.summary.riskLevel === 'high' ? 'text-red-400' : 
@@ -170,7 +170,7 @@ export default function SimulationResults({ outputs, month, year, executionTime 
                                             {card.summary.riskLevel}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Competitors</span>
                                         <span className="text-accent font-semibold">{card.summary.competitors}</span>
                                     </div>
@@ -179,15 +179,15 @@ export default function SimulationResults({ outputs, month, year, executionTime 
 
                             {card.id === 'operations' && (
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Employees</span>
                                         <span className="text-primary font-semibold">{card.summary.employees}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Productivity</span>
                                         <span className="text-white font-semibold">{(card.summary.productivity).toFixed(0)}%</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-base">
                                         <span className="text-white/60">Turnover</span>
                                         <span className={`font-semibold ${card.summary.turnover < 0.1 ? 'text-green-400' : 'text-yellow-400'}`}>
                                             {(card.summary.turnover * 100).toFixed(1)}%
@@ -196,7 +196,7 @@ export default function SimulationResults({ outputs, month, year, executionTime 
                                 </div>
                             )}
 
-                            <div className="mt-4 text-xs text-white/40 text-center">
+                            <div className="mt-4 text-sm text-white/40 text-center">
                                 Click for details
                             </div>
                         </div>
@@ -244,13 +244,13 @@ export default function SimulationResults({ outputs, month, year, executionTime 
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                                            <div className="text-xs text-white/50 mb-1">Revenue</div>
+                                            <div className="text-sm text-white/50 mb-1">Revenue</div>
                                             <div className="text-xl font-bold text-green-400">
                                                 ${selectedCardData.details.profit_loss?.revenue?.toLocaleString() || '0'}
                                             </div>
                                         </div>
                                         <div className="p-3 rounded-lg bg-black/40 border border-white/10">
-                                            <div className="text-xs text-white/50 mb-1">Cash Balance</div>
+                                            <div className="text-sm text-white/50 mb-1">Cash Balance</div>
                                             <div className="text-xl font-bold text-primary">
                                                 ${selectedCardData.summary.cashBalance.toLocaleString()}
                                             </div>
@@ -258,17 +258,17 @@ export default function SimulationResults({ outputs, month, year, executionTime 
                                     </div>
 
                                     <div className="space-y-2">
-                                        <h4 className="text-sm font-semibold text-white mb-2">Cost Breakdown</h4>
+                                        <h4 className="text-base font-semibold text-white mb-2">Cost Breakdown</h4>
                                         <div className="space-y-2">
                                             <div className="flex justify-between p-2 rounded bg-black/40">
-                                                <span className="text-sm text-white/70">Labor</span>
-                                                <span className="text-sm font-semibold text-white">
+                                                <span className="text-base text-white/70">Labor</span>
+                                                <span className="text-base font-semibold text-white">
                                                     ${selectedCardData.details.cost_breakdown?.labor?.toLocaleString() || '0'}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between p-2 rounded bg-black/40">
-                                                <span className="text-sm text-white/70">Inventory/COGS</span>
-                                                <span className="text-sm font-semibold text-white">
+                                                <span className="text-base text-white/70">Inventory/COGS</span>
+                                                <span className="text-base font-semibold text-white">
                                                     ${selectedCardData.details.cost_breakdown?.inventory?.toLocaleString() || '0'}
                                                 </span>
                                             </div>

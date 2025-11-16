@@ -47,8 +47,14 @@ export default function DecisionPanel({
     };
 
     const handlePriceModifierChange = (value: number) => {
-        updateDecision('product_price_modifier', value);
-        updateDecision('pricing_strategy', getPriceStrategyFromModifier(value));
+        console.log('🎚️ Price modifier changing to:', value);
+        const newDecisions = { 
+            ...decisions, 
+            product_price_modifier: value,
+            pricing_strategy: getPriceStrategyFromModifier(value)
+        };
+        console.log('📦 New decisions:', newDecisions);
+        onChange(newDecisions);
     };
 
     const estimatedMonthlyCost =
@@ -143,21 +149,24 @@ export default function DecisionPanel({
                             {isExpanded && (
                                 <div className="px-4 pb-4 pt-2 border-t border-white/10 bg-black/30 animate-in slide-in-from-top-2">
                                     {section.id === 'pricing' && (
-                                        <div className="space-y-3">
+                                        <div className="space-y-4 py-2">
                                             <div className="flex justify-between items-center">
                                                 <Label className="text-xs text-white/70">Price Modifier</Label>
                                                 <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
                                                     {Math.round(decisions.product_price_modifier * 100)}%
                                                 </Badge>
                                             </div>
-                                            <Slider
-                                                min={0.7}
-                                                max={1.5}
-                                                step={0.05}
-                                                value={[decisions.product_price_modifier]}
-                                                onValueChange={([val]) => handlePriceModifierChange(val)}
-                                                className="cursor-pointer"
-                                            />
+                                            <div className="py-2 relative z-10" onMouseDown={(e) => e.stopPropagation()}>
+                                                <Slider
+                                                    min={0.7}
+                                                    max={1.5}
+                                                    step={0.05}
+                                                    value={[decisions.product_price_modifier]}
+                                                    onValueChange={([val]) => handlePriceModifierChange(val)}
+                                                    className="cursor-pointer"
+                                                    disabled={false}
+                                                />
+                                            </div>
                                             <div className="flex justify-between text-xs text-white/40">
                                                 <span>70%</span>
                                                 <span>150%</span>

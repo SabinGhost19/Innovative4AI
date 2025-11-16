@@ -76,7 +76,7 @@ const Login = () => {
                             <Building2 className="w-6 h-6 text-primary mt-1" />
                             <div>
                                 <h3 className="font-semibold text-white">Pick Up Where You Left Off</h3>
-                                <p className="text-sm text-white/60">
+                                <p className="text-base text-white/60">
                                     Your business simulation is saved and ready to continue
                                 </p>
                             </div>
@@ -86,7 +86,7 @@ const Login = () => {
                             <TrendingUp className="w-6 h-6 text-primary mt-1" />
                             <div>
                                 <h3 className="font-semibold text-white">Real-Time Market Data</h3>
-                                <p className="text-sm text-white/60">
+                                <p className="text-base text-white/60">
                                     Experience realistic NYC business dynamics
                                 </p>
                             </div>
@@ -96,7 +96,7 @@ const Login = () => {
                             <Users className="w-6 h-6 text-primary mt-1" />
                             <div>
                                 <h3 className="font-semibold text-white">AI-Powered Simulation</h3>
-                                <p className="text-sm text-white/60">
+                                <p className="text-base text-white/60">
                                     Smart agents analyze demographics and trends
                                 </p>
                             </div>
@@ -148,7 +148,7 @@ const Login = () => {
                             )}
                         </Button>
 
-                        <div className="text-center text-sm text-white/60">
+                        <div className="text-center text-base text-white/60">
                             Don't have an account?{" "}
                             <Button
                                 variant="link"

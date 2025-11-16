@@ -473,6 +473,41 @@ const Dashboard = () => {
     }
   };
 
+  const handleAddInvestment = async (amount: number) => {
+    // Update cash balance
+    const newBalance = cashBalance + amount;
+    setCashBalance(newBalance);
+
+    // Update previous month state to reflect new investment
+    setPreviousMonthState(prev => ({
+      ...prev,
+      cashBalance: newBalance,
+    }));
+
+    // Save state to backend if session exists
+    if (sessionId && userId) {
+      try {
+        await saveMonthlyState(
+          sessionId,
+          userId,
+          currentMonth,
+          currentYear,
+          previousMonthState.revenue,
+          previousMonthState.profit,
+          previousMonthState.customers,
+          newBalance
+        );
+      } catch (error) {
+        console.error("Failed to save investment:", error);
+      }
+    }
+
+    toast({
+      title: "Investment Added",
+      description: `$${amount.toLocaleString()} has been added to your cash balance.`,
+    });
+  };
+
   if (!businessData) {
     return null;
   }
@@ -493,9 +528,10 @@ const Dashboard = () => {
         currentMonth={currentMonth}
         cashBalance={cashBalance}
         notifications={5}
-        onNextMonth={handleNextMonth}
+        onNextMonth={handleFullSimulation}
         isLoadingNextMonth={isLoadingEvent}
         onLogout={handleLogout}
+        onAddInvestment={handleAddInvestment}
       />
 
       {/* Revert Success Alert */}
@@ -510,25 +546,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="px-8 py-4 flex gap-4">
-        <Button
-          onClick={handleFullSimulation}
-          disabled={isLoadingEvent}
-          size="lg"
-          className="bg-gradient-to-r from-primary to-accent"
-        >
-          {isLoadingEvent ? "🔄 Running Simulation..." : "🚀 Run Full Month Simulation"}
-        </Button>
-        <Button
-          onClick={handleNextMonth}
-          disabled={isLoadingEvent}
-          variant="outline"
-          size="lg"
-        >
-          {isLoadingEvent ? "⏳ Generating..." : "🎲 Quick Event Only"}
-        </Button>
-      </div>
+
 
       {/* Full Simulation Results */}
       {simulationOutputs && (
@@ -555,18 +573,18 @@ const Dashboard = () => {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-white mb-2">Latest Event</h3>
                   <h4 className="text-primary font-medium mb-2">{lastEvent.nume_eveniment}</h4>
-                  <p className="text-sm text-white/70 mb-3">{lastEvent.descriere_scurta}</p>
+                  <p className="text-base text-white/70 mb-3">{lastEvent.descriere_scurta}</p>
 
                   <div className="flex items-center gap-4">
                     <div className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10">
-                      <span className="text-xs text-white/50">Customer Impact</span>
+                      <span className="text-sm text-white/50">Customer Impact</span>
                       <div className={`text-lg font-bold ${lastEvent.impact_clienti_lunar > 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {lastEvent.impact_clienti_lunar > 0 ? '+' : ''}{lastEvent.impact_clienti_lunar}%
                       </div>
                     </div>
 
                     {lastEvent.relevanta_pentru_business && (
-                      <div className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
+                      <div className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-medium">
                         ✓ Relevant
                       </div>
                     )}
@@ -589,17 +607,17 @@ const Dashboard = () => {
                   {/* Main Trend */}
                   <div className="mb-4">
                     <h4 className="text-accent font-medium mb-1">{lastTrends.main_trend.trend_name}</h4>
-                    <p className="text-sm text-white/70 mb-2">{lastTrends.main_trend.description}</p>
+                    <p className="text-base text-white/70 mb-2">{lastTrends.main_trend.description}</p>
 
                     <div className="flex items-center gap-3 flex-wrap">
                       <div className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10">
-                        <span className="text-xs text-white/50">Impact Score</span>
+                        <span className="text-sm text-white/50">Impact Score</span>
                         <div className={`text-lg font-bold ${lastTrends.main_trend.impact_score > 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {lastTrends.main_trend.impact_score > 0 ? '+' : ''}{lastTrends.main_trend.impact_score}
                         </div>
                       </div>
 
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${lastTrends.main_trend.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${lastTrends.main_trend.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
                         lastTrends.main_trend.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                           'bg-gray-500/20 text-gray-400'
                         }`}>
@@ -610,12 +628,12 @@ const Dashboard = () => {
 
                   {/* Actionable Insight */}
                   <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                    <div className="text-xs text-primary font-medium mb-1">💡 Action Item</div>
-                    <p className="text-sm text-white/80">{lastTrends.main_trend.actionable_insight}</p>
+                    <div className="text-sm text-primary font-medium mb-1">💡 Action Item</div>
+                    <p className="text-base text-white/80">{lastTrends.main_trend.actionable_insight}</p>
                   </div>
 
                   {/* Overall Metrics */}
-                  <div className="mt-4 flex items-center gap-4 text-xs">
+                  <div className="mt-4 flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1">
                       <span className="text-white/50">Sentiment:</span>
                       <span className={`font-medium ${lastTrends.overall_sentiment === 'positive' ? 'text-green-400' :
@@ -643,14 +661,14 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {lastTrends.secondary_trends.map((trend: any, index: number) => (
                 <div key={index} className="p-4 rounded-lg bg-black/40 border border-white/10">
-                  <h4 className="text-sm font-medium text-primary mb-1">{trend.trend_name}</h4>
-                  <p className="text-xs text-white/60 mb-2">{trend.description}</p>
+                  <h4 className="text-base font-medium text-primary mb-1">{trend.trend_name}</h4>
+                  <p className="text-sm text-white/60 mb-2">{trend.description}</p>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-bold ${trend.impact_score > 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {trend.impact_score > 0 ? '+' : ''}{trend.impact_score}
                     </span>
                     <span className="text-xs text-white/40">•</span>
-                    <span className="text-xs text-white/50">{trend.confidence}</span>
+                    <span className="text-sm text-white/50">{trend.confidence}</span>
                   </div>
                 </div>
               ))}
