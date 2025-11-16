@@ -16,10 +16,12 @@ import {
     TrendingUp,
     Users,
     Home,
-    Briefcase
+    Briefcase,
+    Sparkles
 } from "lucide-react";
 import { register as registerUser, createSession, cleanupTempRegistration } from "@/lib/auth";
 import { BusinessData } from "./Onboarding";
+import ReviewChatbot from "@/components/dashboard/ReviewChatbot";
 
 interface RegistrationData {
     username: string;
@@ -33,6 +35,7 @@ const Overview = () => {
     const [error, setError] = useState("");
     const [censusData, setCensusData] = useState<any>(null);
     const [loadingCensus, setLoadingCensus] = useState(false);
+    const [chatbotOpen, setChatbotOpen] = useState(false);
 
     useEffect(() => {
         // Load registration data from localStorage
@@ -447,6 +450,32 @@ const Overview = () => {
                     By starting the simulation, your account and business will be created in the database
                 </p>
             </div>
+
+            {/* Chatbot Button - Floating in bottom right */}
+            {data?.business?.location && (
+                <>
+                    <Button
+                        onClick={() => setChatbotOpen(true)}
+                        className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-black font-semibold shadow-2xl shadow-primary/50 hover:shadow-primary/70 transition-all duration-300 px-6 py-6 text-base"
+                        size="lg"
+                    >
+                        <Sparkles className="h-5 w-5 mr-2" />
+                        Get AI Location Review
+                    </Button>
+
+                    <ReviewChatbot
+                        isOpen={chatbotOpen}
+                        onClose={() => setChatbotOpen(false)}
+                        location={{
+                            lat: data.business.location.lat,
+                            lng: data.business.location.lng,
+                            address: data.business.location.address,
+                            neighborhood: data.business.location.neighborhood,
+                        }}
+                        businessType={data.business.industry}
+                    />
+                </>
+            )}
         </div>
     );
 };

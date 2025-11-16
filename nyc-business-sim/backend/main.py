@@ -911,6 +911,26 @@ def get_industry_comparison(
     }
 
 
+@app.get("/api/business-survival/find")
+def find_business_survival_simple(
+    business_type: str,
+    county: str = "New York County, New York",
+    db: Session = Depends(get_db)
+):
+    """
+    Simple endpoint to find business survival data by type and county.
+    
+    Example: /api/business-survival/find?business_type=coffee&county=New York County, New York
+    """
+    result = survival_svc.find_business_type_survival(db, business_type, county)
+    
+    if not result:
+        # Return null instead of 404 for chatbot to handle gracefully
+        return None
+    
+    return result
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
