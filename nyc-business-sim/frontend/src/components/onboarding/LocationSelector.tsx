@@ -88,9 +88,21 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
           median_gross_rent: demographics['B25031_001E'] ? Number(demographics['B25031_001E']) : null,
           median_home_value: demographics['B25077_001E'] ? Number(demographics['B25077_001E']) : null,
         });
+      } else {
+        console.error('API response error:', response.status, response.statusText);
+        toast({
+          title: "Could not load market data",
+          description: "Backend service may be unavailable. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Failed to fetch price data:', error);
+      toast({
+        title: "Connection Error",
+        description: "Make sure the backend is running (docker-compose up)",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingPrices(false);
     }
