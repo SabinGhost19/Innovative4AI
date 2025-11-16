@@ -6,14 +6,28 @@
  * Execution: PHASE 3 (preliminary) + PHASE 4 (recalc cu customers real)
  * Timp estimat: ~0.1s
  * 
+ * ENHANCED with Turnover & Retention Models:
+ * - Turnover rate calculation (morale-based)
+ * - Replacement cost formulas (1.5x-2x salary)
+ * - Productivity loss from departures
+ * - Training amortization
+ * 
  * @module employee-agent
  * @author NYC Business Simulator
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // IMPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import {
+  calculateTurnoverRate,
+  calculateExpectedDepartures,
+  calculateTurnoverImpact,
+  calculateProductivityLoss,
+  calculateEngagementRevenueMultiplier,
+} from './employee-math';
 
 /**
  * Input interface pentru Employee Agent
@@ -50,6 +64,16 @@ export interface EmployeeResult {
   
   /** Flag care indică dacă echipa e suprasolicitată */
   overworked: boolean;
+  
+  /** Turnover metrics (ENHANCED) */
+  turnover?: {
+    annual_turnover_rate: number; // % (0-100)
+    expected_departures_this_month: number;
+    replacement_cost_per_employee: number;
+    total_turnover_cost: number;
+    productivity_loss_multiplier: number; // 0-1
+    engagement_revenue_multiplier: number; // 0.8-1.2
+  };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -342,17 +366,38 @@ export function calculateEmployeeMetrics(
   const totalSalaries = num_employees * salary_per_employee;
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STEP 7: Calculate turnover metrics (ENHANCED)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  const annualTurnoverRate = calculateTurnoverRate(morale) * 100; // Convert to %
+  const expectedDepartures = calculateExpectedDepartures(num_employees, morale);
+  const annualSalary = salary_per_employee * 12;
+  
+  const turnoverImpact = calculateTurnoverImpact(expectedDepartures, annualSalary);
+  const productivityLoss = calculateProductivityLoss(expectedDepartures, num_employees);
+  const engagementMultiplier = calculateEngagementRevenueMultiplier(morale);
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // RETURN: Final result
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
   return {
     total_employees: num_employees,
     total_salaries: totalSalaries,
-    productivity_score: Math.round(productivityScore),
+    productivity_score: Math.round(productivityScore * (1 - productivityLoss)), // Apply turnover loss
     morale,
-    overworked
+    overworked,
+    turnover: {
+      annual_turnover_rate: Math.round(annualTurnoverRate * 10) / 10,
+      expected_departures_this_month: expectedDepartures,
+      replacement_cost_per_employee: turnoverImpact.costPerDeparture,
+      total_turnover_cost: turnoverImpact.totalCost,
+      productivity_loss_multiplier: Math.round(productivityLoss * 100) / 100,
+      engagement_revenue_multiplier: Math.round(engagementMultiplier * 100) / 100,
+    },
   };
 }
+
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // UTILITY EXPORTS (pentru testing și debugging)

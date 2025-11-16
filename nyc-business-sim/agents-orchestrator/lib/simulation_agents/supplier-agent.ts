@@ -4,7 +4,13 @@
  * Analyzes supplier availability, costs, and pricing volatility.
  * Calculates monthly inventory and supply costs based on business type.
  * 
- * Model: gpt-4o-mini (fast decisions)
+ * ENHANCED with Mathematical Models:
+ * - Dynamic utility costs (seasonal + borough adjusted)
+ * - Volume-based COGS discounts (economies of scale)
+ * - Energy consumption by business type
+ * - Supplier relationship pricing multipliers
+ * 
+ * Model: gpt-4o-mini (fast decisions) + Pure Math
  * Output: SupplierAnalysisSchema (structured)
  */
 
@@ -14,36 +20,94 @@ import { z } from 'zod';
 import type { DetailedCensusData } from '../../core/types';
 import { SupplierAnalysisSchema } from '../../core/schemas';
 import { LLM_CONFIG, calculateMonthlyRent } from '../../core/constants';
+import {
+  calculateDynamicUtilities,
+  calculateVolumeCOGS,
+  getBaseCOGSRate,
+  estimateEnergyConsumption,
+  calculateRelationshipDiscount,
+  calculateTotalCOGS,
+} from './supplier-math';
 
 /**
  * Analyze supplier dynamics and estimate costs
  */
 export async function analyzeSupplierDynamics(
   businessType: string,
-  location: { address: string; neighborhood: string; county: string },
+  location: { address: string; neighborhood: string; county: string; sqft?: number },
   censusData: DetailedCensusData,
-  currentRevenue: number, // For calculating percentages
+  currentRevenue: number,
   currentMonth: number,
-  currentYear: number
+  currentYear: number,
+  monthsInBusiness: number = 1
 ): Promise<z.infer<typeof SupplierAnalysisSchema>> {
   
   const monthlyRent = calculateMonthlyRent(businessType, location.county);
+  const sqft = location.sqft || estimateSqFt(businessType); // Use provided or estimate
+  const borough = mapCountyToBorough(location.county);
   
-  // Estimate utilities as 3-5% of rent
-  const estimatedUtilities = monthlyRent * 0.04;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MATHEMATICAL CALCULATIONS (NO LLM)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
-  // Estimate inventory/supplies as % of revenue based on business type
-  const inventoryPercentage = getInventoryPercentage(businessType);
-  const estimatedInventory = currentRevenue * inventoryPercentage;
+  // Dynamic utilities (seasonal + borough adjusted)
+  const utilities = calculateDynamicUtilities(sqft, currentMonth, borough, businessType);
+  
+  // Energy consumption and cost
+  const energyKwh = estimateEnergyConsumption(sqft, businessType, currentMonth);
+  
+  // Base COGS rate by business type
+  const baseCOGSPercent = getBaseCOGSRate(businessType);
+  
+  // Apply volume discount (economies of scale)
+  const effectiveCOGSPercent = calculateVolumeCOGS(baseCOGSPercent, currentRevenue);
+  
+  // Calculate final COGS rate with relationship discount
+  const finalCOGSRate = calculateTotalCOGS(businessType, currentRevenue, monthsInBusiness);
+  
+  // Calculate actual COGS in dollars
+  const totalCOGS = currentRevenue * finalCOGSRate;
+  
+  // Calculate relationship discount for display
+  const relationshipDiscount = calculateRelationshipDiscount(monthsInBusiness);
+  
+  // Total supplier costs
+  const totalSupplierCosts = totalCOGS + utilities;
+  const costPercent = (totalSupplierCosts / currentRevenue) * 100;
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MATHEMATICAL SUMMARY FOR LLM
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  const mathSummary = `
+MATHEMATICAL CALCULATIONS COMPLETED:
+- Square Footage: ${sqft} sqft
+- Monthly Utilities: $${utilities.toFixed(2)} (seasonal adjusted for ${getSeasonName(currentMonth)})
+- Energy Consumption: ${energyKwh} kWh
+- Base COGS Rate: ${baseCOGSPercent.toFixed(1)}%
+- Volume Discount Applied: ${((baseCOGSPercent - effectiveCOGSPercent)).toFixed(2)}%
+- Effective COGS: ${effectiveCOGSPercent.toFixed(1)}%
+- Relationship Discount: ${((1 - relationshipDiscount) * 100).toFixed(1)}% (${monthsInBusiness} months in business)
+- Total COGS: $${totalCOGS.toFixed(2)}
+- Total Supplier Costs: $${totalSupplierCosts.toFixed(2)} (${costPercent.toFixed(1)}% of revenue)
+`;
   
   const systemPrompt = `You are a supply chain expert for NYC small businesses.
-Your role is to analyze supplier markets and estimate operating costs.
+Your role is to USE THE MATHEMATICAL CALCULATIONS PROVIDED and add supplier relationship insights.
 
-IMPORTANT:
-- NYC has different supply dynamics than other markets (higher costs, more options)
-- Seasonality affects both prices and availability
-- Be realistic about supplier reliability in urban environments
-- Cost estimates should reflect current market conditions`;
+CRITICAL: The costs are ALREADY CALCULATED using:
+- Dynamic utility formulas (seasonal + borough)
+- Volume-based COGS discounts (economies of scale)
+- Supplier relationship multipliers
+- Energy consumption models
+
+Your job is to:
+1. Rate supplier availability (1-5)
+2. Rate price volatility (low/medium/high)
+3. Rate supplier reliability (1-100)
+4. Provide 3 cost optimization tips
+
+DO NOT recalculate costs - use the provided numbers.`;
 
   const userPrompt = `Analyze supplier dynamics for this business:
 
@@ -51,11 +115,9 @@ IMPORTANT:
 - Type: ${businessType}
 - Location: ${location.neighborhood}, ${location.county}
 - Current Monthly Revenue: $${currentRevenue.toLocaleString()}
+- Months in Business: ${monthsInBusiness}
 
-💰 ESTIMATED BASELINE COSTS:
-- Monthly Rent: $${monthlyRent.toLocaleString()}
-- Utilities (estimated): $${estimatedUtilities.toLocaleString()}
-- Inventory/Supplies (${(inventoryPercentage * 100).toFixed(0)}% of revenue): $${estimatedInventory.toLocaleString()}
+${mathSummary}
 
 📊 AREA CONTEXT (Census Data):
 - Median Income: $${censusData.demographics_detailed.B19013_001E?.value || 'N/A'}
@@ -66,25 +128,90 @@ IMPORTANT:
 - Month: ${currentMonth}/12 (${getSeasonName(currentMonth)})
 - Year: ${currentYear}
 
-ANALYZE:
-1. Supplier Availability: How easy is it to source supplies in NYC for this business?
-2. Monthly Costs: Refine the estimates above based on your expertise
-3. Price Volatility: How stable are supplier prices?
-4. Supplier Reliability: Typical NYC supplier reliability score (0-100)
-5. Cost Optimization Tips: 3 specific tips for reducing costs
-6. Seasonal Adjustments: Should costs change this month? By how much?
+PROVIDE SUPPLIER INTELLIGENCE:
 
-Use the baseline estimates as starting points but adjust based on business type and location.`;
+1. **Supplier Availability**: abundant/adequate/limited/scarce
+2. **Price Volatility**: low/medium/high
+3. **Supplier Reliability** (0-100): Typical delivery/quality reliability
+4. **Cost Optimization Tips**: 3 specific, actionable tips
+
+IMPORTANT: Costs are pre-calculated. Focus on qualitative insights.`;
+
+  // Partial schema for LLM - only qualitative fields
+  const PartialSupplierSchema = z.object({
+    supplier_availability: z.enum(['abundant', 'adequate', 'limited', 'scarce']),
+    price_volatility: z.enum(['low', 'medium', 'high']),
+    supplier_reliability: z.number().min(0).max(100),
+    cost_optimization_tips: z.array(z.string()).max(3),
+  });
 
   const result = await generateObject({
     model: openai(LLM_CONFIG.FAST_MODEL),
-    schema: SupplierAnalysisSchema,
+    schema: PartialSupplierSchema,
     system: systemPrompt,
     prompt: userPrompt,
     temperature: LLM_CONFIG.DETERMINISTIC,
   });
 
-  return result.object;
+  // Determine seasonal adjustments
+  const isSeasonalMonth = currentMonth === 12 || currentMonth === 1 || currentMonth === 2 || 
+                          currentMonth === 6 || currentMonth === 7 || currentMonth === 8;
+  const seasonalPercentage = isSeasonalMonth ? 
+    (currentMonth >= 6 && currentMonth <= 8 ? 25 : 20) : 0;
+  
+  // Combine LLM outputs with EXACT mathematical calculations
+  return {
+    supplier_availability: result.object.supplier_availability,
+    estimated_monthly_costs: {
+      inventory: totalCOGS,
+      supplies: totalCOGS * 0.02, // 2% supplier fees
+      utilities: utilities,
+      total: totalSupplierCosts,
+    },
+    price_volatility: result.object.price_volatility,
+    supplier_reliability: result.object.supplier_reliability,
+    cost_optimization_tips: result.object.cost_optimization_tips,
+    seasonal_adjustments: {
+      expected: isSeasonalMonth,
+      percentage: seasonalPercentage,
+      reasoning: isSeasonalMonth ? 
+        (currentMonth >= 6 && currentMonth <= 8 ? 
+          'Summer peak cooling costs increase utilities 20-30%' : 
+          'Winter heating costs increase utilities 15-25%') :
+        'No significant seasonal cost variations expected this month',
+    },
+  };
+}
+
+/**
+ * Helper: Estimate square footage if not provided
+ */
+function estimateSqFt(businessType: string): number {
+  const type = businessType.toLowerCase();
+  
+  if (type.includes('restaurant')) return 1200;
+  if (type.includes('coffee') || type.includes('cafe')) return 800;
+  if (type.includes('retail') || type.includes('shop')) return 1000;
+  if (type.includes('bodega')) return 600;
+  if (type.includes('bakery')) return 900;
+  if (type.includes('bar')) return 1500;
+  
+  return 1000; // Default
+}
+
+/**
+ * Helper: Map NYC county to borough
+ */
+function mapCountyToBorough(county: string): 'Manhattan' | 'Brooklyn' | 'Queens' | 'Bronx' | 'Staten Island' {
+  const countyLower = county.toLowerCase();
+  
+  if (countyLower.includes('new york') || countyLower.includes('manhattan')) return 'Manhattan';
+  if (countyLower.includes('kings') || countyLower.includes('brooklyn')) return 'Brooklyn';
+  if (countyLower.includes('queens')) return 'Queens';
+  if (countyLower.includes('bronx')) return 'Bronx';
+  if (countyLower.includes('richmond') || countyLower.includes('staten')) return 'Staten Island';
+  
+  return 'Brooklyn'; // Default
 }
 
 /**

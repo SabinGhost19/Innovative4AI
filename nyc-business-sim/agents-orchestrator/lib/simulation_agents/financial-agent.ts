@@ -4,8 +4,22 @@
  * Calculates P&L (Profit & Loss), cash flow, and financial health metrics.
  * This is the final aggregator of all financial data.
  * 
+ * ENHANCED with Mathematical Forecasting:
+ * - Linear regression for cash runway prediction
+ * - Revenue & profit trend forecasting
+ * - 95% confidence intervals
+ * - Break-even analysis
+ * 
  * NO AI MODEL - Pure TypeScript calculations
  */
+
+import {
+  forecastCashRunway,
+  forecastRevenue,
+  forecastProfit,
+  calculateBreakEven,
+  type HistoricalDataPoint,
+} from './financial-math';
 
 export interface FinancialAnalysisInput {
   // Revenue (from Customer Agent)
@@ -23,6 +37,9 @@ export interface FinancialAnalysisInput {
   previousCashBalance: number;
   previousRevenue: number;
   previousProfit: number;
+  
+  // Historical data for forecasting (optional)
+  historicalData?: HistoricalDataPoint[];
   
   // Context
   currentMonth: number;
@@ -64,6 +81,26 @@ export interface FinancialAnalysis {
     profit_growth_rate: number;  // % vs last month
     cash_runway_months: number;  // Months until cash runs out
     financial_health_score: number; // 0-100
+  };
+  
+  // Forecasting (if historical data provided)
+  forecasts?: {
+    revenue_3month: {
+      projected: number;
+      confidenceIntervalLow: number;
+      confidenceIntervalHigh: number;
+      trend: 'increasing' | 'decreasing' | 'stable';
+    };
+    cash_runway: {
+      monthsUntilZero: number;
+      confidenceInterval: [number, number];
+      projectedBalance12Month: number;
+    };
+    break_even: {
+      requiredRevenue: number;
+      currentGap: number;
+      onTrackToReach: boolean;
+    };
   };
   
   // Warnings/alerts
@@ -130,6 +167,50 @@ export function analyzeFinancialPerformance(input: FinancialAnalysisInput): Fina
     inventoryPercentage: (inventoryCost / revenue) * 100,
   });
   
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // FORECASTING (if historical data available)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  let forecasts: FinancialAnalysis['forecasts'];
+  
+  if (input.historicalData && input.historicalData.length >= 3) {
+    // Need at least 3 months for meaningful forecasting
+    const historical = input.historicalData;
+    
+    // Forecast revenue 3 months ahead
+    const revenueForecast = forecastRevenue(historical, 3);
+    
+    // Forecast cash runway 12 months ahead
+    const cashForecast = forecastCashRunway(historical, 12);
+    
+    // Calculate break-even
+    const fixedCosts = laborCost + rentCost + utilitiesCost;
+    const variableCostPercent = revenue > 0 ? (inventoryCost / revenue) * 100 : 35;
+    const breakEven = calculateBreakEven(fixedCosts, variableCostPercent);
+    
+    const currentGap = breakEven.breakEvenRevenue - revenue;
+    const onTrackToReach = revenueForecast.trend === 'increasing' && currentGap > 0;
+    
+    forecasts = {
+      revenue_3month: {
+        projected: revenueForecast.projectedValue,
+        confidenceIntervalLow: revenueForecast.confidenceIntervalLow,
+        confidenceIntervalHigh: revenueForecast.confidenceIntervalHigh,
+        trend: revenueForecast.trend,
+      },
+      cash_runway: {
+        monthsUntilZero: cashForecast.monthsUntilZero,
+        confidenceInterval: cashForecast.zeroConfidenceInterval,
+        projectedBalance12Month: cashForecast.projectedValue,
+      },
+      break_even: {
+        requiredRevenue: breakEven.breakEvenRevenue,
+        currentGap: Math.max(0, currentGap),
+        onTrackToReach,
+      },
+    };
+  }
+  
   return {
     profit_loss: {
       revenue,
@@ -160,6 +241,7 @@ export function analyzeFinancialPerformance(input: FinancialAnalysisInput): Fina
       cash_runway_months: cashRunwayMonths,
       financial_health_score: healthScore,
     },
+    forecasts,
     alerts,
   };
 }
