@@ -25,15 +25,20 @@ def populate_business_survival():
         existing_count = db.query(BusinessSurvival).count()
         if existing_count > 0:
             print(f"⚠️  Business Survival table already contains {existing_count} records")
-            response = input("Do you want to clear and reload? (yes/no): ").strip().lower()
-            if response != 'yes':
-                print("❌ Aborted - keeping existing data")
+            # Check if running in interactive mode
+            if sys.stdin.isatty():
+                response = input("Do you want to clear and reload? (yes/no): ").strip().lower()
+                if response != 'yes':
+                    print("❌ Aborted - keeping existing data")
+                    return
+                
+                # Clear existing data
+                print("🗑️  Clearing existing records...")
+                db.query(BusinessSurvival).delete()
+                db.commit()
+            else:
+                print("✅ Running in non-interactive mode - keeping existing data")
                 return
-            
-            # Clear existing data
-            print("🗑️  Clearing existing records...")
-            db.query(BusinessSurvival).delete()
-            db.commit()
         
         # Read CSV and insert data
         print(f"📂 Reading CSV file: {csv_file}")
