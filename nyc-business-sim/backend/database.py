@@ -126,6 +126,40 @@ class DetailedAreaAnalysis(Base):
     raw_derived_stats_json = Column(JSON)
 
 
+class CensusTractData(Base):
+    """Tabelă pentru datele pre-încărcate din CSV (ny_tract_clusters_2022.csv)"""
+    __tablename__ = "census_tract_data"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # FIPS Tract Full ID (cheie unică)
+    fips_tract_full = Column(String(11), unique=True, nullable=False, index=True)
+    
+    # Location Info
+    area_name = Column(String(255))
+    cluster = Column(Integer)
+    state_fips = Column(String(2), index=True)
+    county_fips = Column(String(3), index=True)
+    tract_fips = Column(String(6), index=True)
+    
+    # Resident Demographics
+    resident_population_total = Column(Float)
+    resident_median_age = Column(Float)
+    resident_median_household_income = Column(Float)
+    pct_bachelors = Column(Float)
+    pct_renters = Column(Float)
+    pct_poverty = Column(Float)
+    
+    # Workforce/Jobs Data
+    workforce_total_jobs = Column(Float)
+    pct_jobs_young = Column(Float)
+    pct_jobs_high_earn = Column(Float)
+    pct_jobs_prof_services = Column(Float)
+    pct_jobs_healthcare = Column(Float)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db():
     """Initialize database tables"""
     Base.metadata.create_all(bind=engine)

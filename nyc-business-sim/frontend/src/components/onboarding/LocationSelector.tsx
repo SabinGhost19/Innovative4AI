@@ -22,6 +22,10 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
     income_per_capita?: number;
     median_gross_rent?: number;
     median_home_value?: number;
+    population?: number;
+    median_age?: number;
+    poverty_rate?: number;
+    renter_rate?: number;
   } | null>(null);
   const [agentStatus, setAgentStatus] = useState({
     demographics: false,
@@ -79,14 +83,22 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
         const data = await response.json();
         console.log('📊 Census data structure:', data);
 
-        // Extract ONLY from standard Census data (census_service.py)
+        // Extract from demographics (which includes both Census API fields and CSV data)
         const demographics = data.data?.demographics || {};
         console.log('📊 Demographics:', demographics);
 
+        // Use available data from CSV and Census
         setPriceData({
-          income_per_capita: demographics['B19301_001E'] ? Number(demographics['B19301_001E']) : null,
+          // Median household income from CSV (resident_median_household_income)
+          income_per_capita: demographics['B19013_001E'] ? Number(demographics['B19013_001E']) : null,
+          // These might not be available, so we'll show alternative data
           median_gross_rent: demographics['B25031_001E'] ? Number(demographics['B25031_001E']) : null,
           median_home_value: demographics['B25077_001E'] ? Number(demographics['B25077_001E']) : null,
+          // Additional data from CSV
+          population: demographics['B01001_001E'] ? Number(demographics['B01001_001E']) : null,
+          median_age: demographics['B01002_001E'] ? Number(demographics['B01002_001E']) : null,
+          poverty_rate: demographics['poverty_rate'] ? Number(demographics['poverty_rate']) : null,
+          renter_rate: demographics['renter_rate'] ? Number(demographics['renter_rate']) : null,
         });
       }
     } catch (error) {
@@ -135,7 +147,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
           latitude: selectedLocation.lat,
           longitude: selectedLocation.lng,
           business_name: businessData.name || 'Test Business',
-          industry: businessData.type || 'Retail',
+          industry: businessData.industry || 'Retail',
         }),
       });
 
@@ -234,7 +246,7 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
                 </div>
               </div>
 
-              {/* Right: Price Data */}
+              {/* Right: Market Overview */}
               <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
                 {isLoadingPrices ? (
                   <div className="flex items-center justify-center h-full">
@@ -245,24 +257,51 @@ const LocationSelector = ({ businessData, updateBusinessData, onNext, onBack }: 
                   </div>
                 ) : priceData ? (
                   <div className="space-y-2">
-                    <p className="font-semibold text-sm text-green-600">Market Overview</p>
+                    <p className="font-semibold text-sm text-green-600 mb-3">Market Overview</p>
+                    {priceData.population && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Populație:</span>
+                        <span className="text-sm font-semibold">{Number(priceData.population).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {priceData.median_age && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Vârstă Medie:</span>
+                        <span className="text-sm font-semibold">{Number(priceData.median_age).toFixed(1)} ani</span>
+                      </div>
+                    )}
                     {priceData.income_per_capita && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Venit pe Cap de Locuitor:</span>
+                        <span className="text-xs text-muted-foreground">Venit Mediu pe Gospodărie:</span>
                         <span className="text-sm font-semibold">${Number(priceData.income_per_capita).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {priceData.poverty_rate !== null && priceData.poverty_rate !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Rată Sărăcie:</span>
+                        <span className="text-sm font-semibold">{Number(priceData.poverty_rate).toFixed(1)}%</span>
+                      </div>
+                    )}
+                    {priceData.renter_rate !== null && priceData.renter_rate !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Rată Închiriere:</span>
+                        <span className="text-sm font-semibold">{Number(priceData.renter_rate).toFixed(1)}%</span>
                       </div>
                     )}
                     {priceData.median_gross_rent && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Chiria Medie Brută:</span>
+                        <span className="text-xs text-muted-foreground">Chiria Medie:</span>
                         <span className="text-sm font-semibold">${Number(priceData.median_gross_rent).toLocaleString()}/mo</span>
                       </div>
                     )}
                     {priceData.median_home_value && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Valoarea Medie a Locuinței:</span>
+                        <span className="text-xs text-muted-foreground">Valoare Locuință:</span>
                         <span className="text-sm font-semibold">${Number(priceData.median_home_value).toLocaleString()}</span>
                       </div>
+                    )}
+                    {!priceData.population && !priceData.median_age && !priceData.income_per_capita && (
+                      <p className="text-xs text-muted-foreground text-center">No data available</p>
                     )}
                   </div>
                 ) : (
