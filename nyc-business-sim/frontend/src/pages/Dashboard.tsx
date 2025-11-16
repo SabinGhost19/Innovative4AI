@@ -489,13 +489,14 @@ const Dashboard = () => {
       try {
         await saveMonthlyState(
           sessionId,
-          userId,
           currentMonth,
           currentYear,
           previousMonthState.revenue,
           previousMonthState.profit,
           previousMonthState.customers,
-          newBalance
+          newBalance,
+          null, // agentOutputs - not needed for investment
+          playerDecisions
         );
       } catch (error) {
         console.error("Failed to save investment:", error);
