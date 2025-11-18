@@ -323,8 +323,6 @@ Riri made risky decisions in Month 5 (aggressive pricing + heavy marketing spend
 
 ---
 
-## Demo Video
+## Demo: 
 
-<video src="assets/gogo.mp4" controls width="100%">
-  Your browser does not support the video tag.
-</video>
+[Watch demo video](assets/gogo.mp4)
